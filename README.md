@@ -60,11 +60,11 @@ ai:
 ```bash
 cd backend
 
-# Maven Wrapper 사용 (권장)
-./mvnw spring-boot:run
+# Gradle Wrapper 사용 (권장)
+./gradlew bootRun
 
-# 또는 Maven 직접 사용
-mvn spring-boot:run
+# 또는 Gradle 직접 사용
+gradle bootRun
 ```
 
 서버가 시작되면 `http://localhost:8080` 에서 API가 제공됩니다.  
