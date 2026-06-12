@@ -1,6 +1,10 @@
 # Maven
 backend/target/
 
+# Gradle
+backend/.gradle/
+backend/build/
+
 # Node
 frontend/node_modules/
 frontend/dist/
