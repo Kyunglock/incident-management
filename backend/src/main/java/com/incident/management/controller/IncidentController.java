@@ -13,9 +13,9 @@ import com.incident.management.service.IncidentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,46 +28,46 @@ public class IncidentController {
     private final IncidentService incidentService;
 
     @GetMapping
-    public ApiResponse<Page<IncidentResponse>> getIncidents(
+    public ResponseEntity<ApiResponse<Page<IncidentResponse>>> getIncidents(
             @RequestParam(required = false) Incident.IncidentStatus status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        return ApiResponse.ok(incidentService.getIncidents(status, pageable));
+            @PageableDefault(size = 10) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(incidentService.getIncidents(status, pageable)));
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<IncidentDetailResponse> getIncident(@PathVariable Long id) {
-        return ApiResponse.ok(incidentService.getIncidentDetail(id));
+    public ResponseEntity<ApiResponse<IncidentDetailResponse>> getIncident(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(incidentService.getIncidentDetail(id)));
     }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<IncidentResponse> createIncident(@Valid @RequestBody CreateIncidentRequest req) {
-        return ApiResponse.ok(incidentService.createIncident(req), "장애가 등록되었습니다.");
+    public ResponseEntity<ApiResponse<IncidentResponse>> createIncident(
+            @Valid @RequestBody CreateIncidentRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(incidentService.createIncident(request), "Incident created successfully"));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<IncidentResponse> updateIncident(@PathVariable Long id,
-                                                         @Valid @RequestBody UpdateIncidentRequest req) {
-        return ApiResponse.ok(incidentService.updateIncident(id, req));
+    public ResponseEntity<ApiResponse<IncidentResponse>> updateIncident(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateIncidentRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(incidentService.updateIncident(id, request)));
     }
 
     @PatchMapping("/{id}/status")
-    public ApiResponse<IncidentResponse> updateStatus(@PathVariable Long id,
-                                                       @Valid @RequestBody UpdateIncidentStatusRequest req) {
-        return ApiResponse.ok(incidentService.updateIncidentStatus(id, req));
+    public ResponseEntity<ApiResponse<IncidentResponse>> updateIncidentStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateIncidentStatusRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(incidentService.updateIncidentStatus(id, request)));
     }
 
     @GetMapping("/{id}/actions")
-    public ApiResponse<List<IncidentActionResponse>> getActions(@PathVariable Long id) {
-        return ApiResponse.ok(incidentService.getActions(id));
+    public ResponseEntity<ApiResponse<List<IncidentActionResponse>>> getActions(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(incidentService.getActions(id)));
     }
 
     @PostMapping("/{id}/actions")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<IncidentActionResponse> addAction(@PathVariable Long id,
-                                                          @Valid @RequestBody CreateIncidentActionRequest req) {
-        return ApiResponse.ok(incidentService.addAction(id, req), "조치가 추가되었습니다.");
+    public ResponseEntity<ApiResponse<IncidentActionResponse>> addAction(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateIncidentActionRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(incidentService.addAction(id, request), "Action added successfully"));
     }
 }

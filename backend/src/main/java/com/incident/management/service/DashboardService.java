@@ -5,6 +5,7 @@ import com.incident.management.dto.response.IncidentResponse;
 import com.incident.management.entity.Incident;
 import com.incident.management.repository.IncidentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +24,8 @@ public class DashboardService {
         long totalResolved = incidentRepository.countByStatus(Incident.IncidentStatus.RESOLVED);
         long totalClosed = incidentRepository.countByStatus(Incident.IncidentStatus.CLOSED);
 
-        List<IncidentResponse> recentIncidents = incidentRepository.findTop5ByOrderByCreatedAtDesc()
+        List<IncidentResponse> recentIncidents = incidentRepository
+                .findTop5ByOrderByCreatedAtDesc(PageRequest.of(0, 5))
                 .stream()
                 .map(IncidentResponse::from)
                 .toList();
