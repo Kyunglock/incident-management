@@ -18,6 +18,6 @@ public class DashboardController {
 
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<DashboardStatsResponse>> getStats() {
-        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getStats()));
+        return ResponseEntity.ok(ApiResponse.success(dashboardService.getStats()));
     }
 }
