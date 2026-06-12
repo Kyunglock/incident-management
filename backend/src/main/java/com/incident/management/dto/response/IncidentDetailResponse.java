@@ -20,7 +20,7 @@ public record IncidentDetailResponse(
         List<DeploymentPlanResponse> deploymentPlans,
         List<IncidentDocumentResponse> documents
 ) {
-    public static IncidentDetailResponse from(Incident incident) {
+    public static IncidentDetailResponse from(Incident incident, List<IncidentActionResponse> actions) {
         return new IncidentDetailResponse(
                 incident.getId(),
                 incident.getTitle(),
@@ -32,9 +32,9 @@ public record IncidentDetailResponse(
                 incident.getCreatedAt(),
                 incident.getUpdatedAt(),
                 incident.getResolvedAt(),
-                incident.getActions().stream().map(IncidentActionResponse::from).toList(),
-                incident.getDeploymentPlans().stream().map(DeploymentPlanResponse::from).toList(),
-                incident.getDocuments().stream().map(IncidentDocumentResponse::from).toList()
+                actions,
+                List.of(),
+                List.of()
         );
     }
 }
