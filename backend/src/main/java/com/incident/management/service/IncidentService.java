@@ -42,7 +42,10 @@ public class IncidentService {
 
     public IncidentDetailResponse getIncidentDetail(Long id) {
         Incident incident = findIncidentById(id);
-        return IncidentDetailResponse.from(incident);
+        List<IncidentActionResponse> actions = incidentActionRepository
+                .findByIncidentIdOrderByPerformedAtDesc(id)
+                .stream().map(IncidentActionResponse::from).toList();
+        return IncidentDetailResponse.from(incident, actions);
     }
 
     @Transactional
@@ -58,7 +61,7 @@ public class IncidentService {
             incident.setStatus(Incident.IncidentStatus.valueOf(request.status().toUpperCase()));
         }
         if (request.priority() != null) {
-            incident.setPriority(Incident.IncidentPriority.valueOf(request.priority().toUpperCase()));
+            incident.setPriority(Incident.Priority.valueOf(request.priority().toUpperCase()));
         }
 
         return IncidentResponse.from(incidentRepository.save(incident));
@@ -80,7 +83,7 @@ public class IncidentService {
             }
         }
         if (request.priority() != null) {
-            incident.setPriority(Incident.IncidentPriority.valueOf(request.priority().toUpperCase()));
+            incident.setPriority(Incident.Priority.valueOf(request.priority().toUpperCase()));
         }
 
         return IncidentResponse.from(incidentRepository.save(incident));
