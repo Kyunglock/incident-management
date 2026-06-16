@@ -28,7 +28,6 @@ public class ReleaseHistory {
     private ReleasePlan releasePlan;
 
     /** SR 번호 (레드마인 이슈 번호). 이 번호로 레드마인 연동해 아래 정보를 채운다. */
-    @Column(nullable = false)
     private String srNumber;
 
     /** 서비스 (레드마인 연동) */
