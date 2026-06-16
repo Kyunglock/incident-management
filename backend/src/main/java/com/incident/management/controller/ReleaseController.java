@@ -1,0 +1,61 @@
+package com.incident.management.controller;
+
+import com.incident.management.dto.response.ReleasePlanResponse;
+import com.incident.management.service.ReleasePlanService;
+import com.incident.management.service.SideEffectService;
+import com.incident.management.service.VulnCheckService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/release")
+@RequiredArgsConstructor
+public class ReleaseController {
+
+    private final ReleasePlanService releasePlanService;
+    private final SideEffectService sideEffectService;
+    private final VulnCheckService vulnCheckService;
+
+    @PostMapping("/plan")
+    public ResponseEntity<ReleasePlanResponse> generatePlan(
+            @RequestParam(required = false) MultipartFile excelFile,
+            @RequestParam String srContent,
+            @RequestParam(required = false) String repoPath,
+            @RequestParam(required = false) String commitFrom,
+            @RequestParam(required = false) String commitTo,
+            @RequestParam(required = false) String releaseTitle) {
+        ReleasePlanResponse response = releasePlanService.generatePlan(
+                excelFile, srContent, repoPath, commitFrom, commitTo, releaseTitle);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<List<ReleasePlanResponse>> getHistory() {
+        return ResponseEntity.ok(releasePlanService.getHistory());
+    }
+
+    @PostMapping("/{id}/side-effect")
+    public ResponseEntity<Map<String, String>> analyzeSideEffect(
+            @PathVariable Long id,
+            @RequestParam String repoPath,
+            @RequestParam(required = false) String commitFrom,
+            @RequestParam(required = false) String commitTo) {
+        String docPath = sideEffectService.analyze(repoPath, commitFrom, commitTo, id);
+        return ResponseEntity.ok(Map.of("docPath", docPath));
+    }
+
+    @PostMapping("/{id}/vuln-check")
+    public ResponseEntity<Map<String, String>> analyzeVuln(
+            @PathVariable Long id,
+            @RequestParam String repoPath,
+            @RequestParam(required = false) String commitFrom,
+            @RequestParam(required = false) String commitTo) {
+        String docPath = vulnCheckService.analyze(repoPath, commitFrom, commitTo, id);
+        return ResponseEntity.ok(Map.of("docPath", docPath));
+    }
+}

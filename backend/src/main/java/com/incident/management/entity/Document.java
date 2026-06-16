@@ -7,33 +7,26 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "incident")
+@Table(name = "document")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Incident {
+public class Document {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private LocalDateTime occurredAt;
+    @Column(length = 50)
+    private String type;
 
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(columnDefinition = "TEXT")
-    private String symptom;
-
-    @Column(columnDefinition = "TEXT")
-    private String cause;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "release_history_id")
-    private ReleaseHistory releaseHistory;
-
     @Column(length = 500)
-    private String docPath;
+    private String filePath;
+
+    private Long refId;
 }
