@@ -27,9 +27,17 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
-    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // PostgreSQL
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // Apache POI (docx/Excel)
+    implementation 'org.apache.poi:poi-ooxml:5.2.5'
+
+    // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 

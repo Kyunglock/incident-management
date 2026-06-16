@@ -1,35 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import DashboardView from '../views/DashboardView.vue'
-import IncidentListView from '../views/IncidentListView.vue'
-import CreateIncidentView from '../views/CreateIncidentView.vue'
-import IncidentDetailView from '../views/IncidentDetailView.vue'
+import HomeView from '../views/HomeView.vue'
+import ReleasePlanView from '../views/ReleasePlanView.vue'
+import IncidentView from '../views/IncidentView.vue'
+import HistoryView from '../views/HistoryView.vue'
 
 const routes = [
-  {
-    path: '/',
-    name: 'Dashboard',
-    component: DashboardView
-  },
-  {
-    path: '/incidents',
-    name: 'IncidentList',
-    component: IncidentListView
-  },
-  {
-    path: '/incidents/new',
-    name: 'CreateIncident',
-    component: CreateIncidentView
-  },
-  {
-    path: '/incidents/:id',
-    name: 'IncidentDetail',
-    component: IncidentDetailView
-  }
+  { path: '/', name: 'Home', component: HomeView },
+  { path: '/release', name: 'ReleasePlan', component: ReleasePlanView },
+  { path: '/incident', name: 'Incident', component: IncidentView },
+  { path: '/history', name: 'History', component: HistoryView },
 ]
 
-const router = createRouter({
+export default createRouter({
   history: createWebHistory(),
-  routes
+  routes,
 })
-
-export default router
