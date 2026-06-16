@@ -1,8 +1,8 @@
 <template>
   <div class="max-w-6xl">
-    <router-link to="/" class="text-sm text-blue-600 hover:underline">← 반영 계획서 목록</router-link>
+    <Breadcrumb :items="breadcrumbItems" />
 
-    <div v-if="plan" class="mt-4">
+    <div v-if="plan">
       <div class="card mb-6 flex items-center justify-between">
         <div>
           <h2 class="text-xl font-bold text-gray-800">{{ plan.title }}</h2>
@@ -94,17 +94,23 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   getReleasePlan, analyzeSideEffect, analyzeVuln,
   createReleaseHistory, getReleaseHistories, downloadDocument,
 } from '../services/api.js'
+import Breadcrumb from '../components/Breadcrumb.vue'
 
 const route = useRoute()
 const planId = route.params.id
 
 const plan = ref(null)
+
+const breadcrumbItems = computed(() => [
+  { label: '반영 계획서 목록', to: '/' },
+  { label: plan.value ? plan.value.title : `#${planId}`, to: null },
+])
 const histories = ref([])
 const phase2Results = ref([])
 const error = ref('')
