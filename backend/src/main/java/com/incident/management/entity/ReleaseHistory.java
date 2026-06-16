@@ -3,8 +3,6 @@ package com.incident.management.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -20,26 +18,25 @@ public class ReleaseHistory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 200)
-    private String title;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "release_plan_id", nullable = false)
+    private ReleasePlan releasePlan;
 
-    private LocalDateTime releaseAt;
+    private LocalDateTime deployedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private Status status = Status.PENDING;
+
+    @Column(columnDefinition = "TEXT")
+    private String memo;
 
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(length = 500)
-    private String excelPath;
-
-    @Column(length = 500)
-    private String docPath;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
-    private String rawInput;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
-    private String llmOutput;
+    public enum Status {
+        PENDING, DEPLOYED, ROLLED_BACK
+    }
 }

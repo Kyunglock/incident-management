@@ -23,7 +23,7 @@ public class SideEffectService {
     private final DocumentRepository documentRepository;
 
     @Transactional
-    public String analyze(String repoPath, String commitFrom, String commitTo, Long releaseHistoryId) {
+    public String analyze(String repoPath, String commitFrom, String commitTo, Long releasePlanId) {
         try {
             String diff = gitAdapter.getDiff(repoPath, commitFrom, commitTo);
             String prompt = promptBuilder.buildSideEffectPrompt(diff);
@@ -33,7 +33,7 @@ public class SideEffectService {
             documentRepository.save(Document.builder()
                     .type("SIDE_EFFECT")
                     .filePath(docPath)
-                    .refId(releaseHistoryId)
+                    .refId(releasePlanId)
                     .build());
 
             return docPath;

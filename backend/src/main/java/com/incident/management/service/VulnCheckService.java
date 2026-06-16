@@ -23,7 +23,7 @@ public class VulnCheckService {
     private final DocumentRepository documentRepository;
 
     @Transactional
-    public String analyze(String repoPath, String commitFrom, String commitTo, Long releaseHistoryId) {
+    public String analyze(String repoPath, String commitFrom, String commitTo, Long releasePlanId) {
         try {
             String diff = gitAdapter.getDiff(repoPath, commitFrom, commitTo);
             String prompt = promptBuilder.buildVulnCheckPrompt(diff);
@@ -35,7 +35,7 @@ public class VulnCheckService {
             documentRepository.save(Document.builder()
                     .type("VULN_CHECK")
                     .filePath(docPath)
-                    .refId(releaseHistoryId)
+                    .refId(releasePlanId)
                     .build());
 
             return docPath;
