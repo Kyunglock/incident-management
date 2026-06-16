@@ -51,9 +51,19 @@
 
       <!-- 목록 -->
       <section class="card col-span-2">
-        <h3 class="section-title">반영 계획서 목록</h3>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-700">반영 계획서 목록</h3>
+          <div class="flex gap-2">
+            <input v-model="keyword" type="text" class="input py-1 w-48" placeholder="제목 검색"
+              @keyup.enter="search" />
+            <button @click="search" class="btn-secondary text-sm">검색</button>
+          </div>
+        </div>
+
         <div v-if="loadingList" class="text-gray-400 text-sm">불러오는 중...</div>
-        <div v-else-if="plans.length === 0" class="text-gray-400 text-sm">반영 계획서가 없습니다.</div>
+        <div v-else-if="plans.length === 0" class="text-gray-400 text-sm py-8 text-center">
+          {{ appliedKeyword ? '검색 결과가 없습니다.' : '반영 계획서가 없습니다.' }}
+        </div>
         <table v-else class="w-full text-sm">
           <thead>
             <tr class="text-left text-gray-400 border-b">
@@ -72,13 +82,22 @@
             </tr>
           </tbody>
         </table>
+
+        <!-- 페이징 -->
+        <div v-if="totalPages > 1" class="flex items-center justify-center gap-1 mt-5">
+          <button class="page-btn" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
+          <button v-for="n in pageNumbers" :key="n" class="page-btn"
+            :class="{ 'bg-blue-600 text-white border-blue-600': n - 1 === page }"
+            @click="goPage(n - 1)">{{ n }}</button>
+          <button class="page-btn" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
+        </div>
       </section>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { generateReleasePlan, getReleasePlans } from '../services/api.js'
 
@@ -97,13 +116,40 @@ const loading = ref(false)
 const loadingList = ref(true)
 const error = ref('')
 
+const keyword = ref('')
+const appliedKeyword = ref('')
+const page = ref(0)
+const size = 10
+const totalPages = ref(0)
+
+const pageNumbers = computed(() => {
+  const windowSize = 5
+  let start = Math.max(0, page.value - Math.floor(windowSize / 2))
+  let end = Math.min(totalPages.value, start + windowSize)
+  start = Math.max(0, end - windowSize)
+  return Array.from({ length: end - start }, (_, i) => start + i + 1)
+})
+
 const onFileChange = (e) => { excelFile.value = e.target.files[0] }
 
 const loadPlans = async () => {
   loadingList.value = true
-  const res = await getReleasePlans()
-  plans.value = res.data
+  const res = await getReleasePlans({ keyword: appliedKeyword.value || undefined, page: page.value, size })
+  plans.value = res.data.content
+  totalPages.value = res.data.totalPages
   loadingList.value = false
+}
+
+const search = () => {
+  appliedKeyword.value = keyword.value.trim()
+  page.value = 0
+  loadPlans()
+}
+
+const goPage = (n) => {
+  if (n < 0 || n >= totalPages.value) return
+  page.value = n
+  loadPlans()
 }
 
 onMounted(loadPlans)
@@ -131,3 +177,9 @@ const generatePlan = async () => {
   }
 }
 </script>
+
+<style scoped>
+.page-btn {
+  @apply min-w-8 h-8 px-2 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors;
+}
+</style>

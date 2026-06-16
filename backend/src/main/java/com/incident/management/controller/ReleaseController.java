@@ -1,5 +1,6 @@
 package com.incident.management.controller;
 
+import com.incident.management.dto.response.PageResponse;
 import com.incident.management.dto.response.ReleasePlanResponse;
 import com.incident.management.service.ReleasePlanService;
 import com.incident.management.service.SideEffectService;
@@ -9,7 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -35,8 +35,11 @@ public class ReleaseController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ReleasePlanResponse>> getAll() {
-        return ResponseEntity.ok(releasePlanService.getAll());
+    public ResponseEntity<PageResponse<ReleasePlanResponse>> getAll(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(releasePlanService.getAll(keyword, page, size));
     }
 
     @GetMapping("/{id}")

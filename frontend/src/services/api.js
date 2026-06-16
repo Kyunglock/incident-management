@@ -6,7 +6,7 @@ const api = axios.create({ baseURL: '/api' })
 export const generateReleasePlan = (formData) =>
   api.post('/release-plans', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 
-export const getReleasePlans = () => api.get('/release-plans')
+export const getReleasePlans = (params) => api.get('/release-plans', { params })
 
 export const getReleasePlan = (id) => api.get(`/release-plans/${id}`)
 
