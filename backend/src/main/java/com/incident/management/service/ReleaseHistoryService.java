@@ -27,6 +27,9 @@ public class ReleaseHistoryService {
 
     @Transactional
     public ReleaseHistoryResponse create(Long releasePlanId, CreateReleaseHistoryRequest request) {
+        if (request.getSrNumber() == null || request.getSrNumber().isBlank()) {
+            throw new IllegalArgumentException("SR 번호는 필수입니다.");
+        }
         ReleasePlan plan = releasePlanRepository.findById(releasePlanId)
                 .orElseThrow(() -> new ResourceNotFoundException("반영 계획서를 찾을 수 없습니다: " + releasePlanId));
 
