@@ -38,4 +38,11 @@ public class ReleaseHistoryController {
             @RequestParam boolean finalConfirmed) {
         return ResponseEntity.ok(releaseHistoryService.updateFinalConfirmed(id, finalConfirmed));
     }
+
+    @PatchMapping("/api/release-histories/{id}/sr-number")
+    public ResponseEntity<ReleaseHistoryResponse> updateSrNumber(
+            @PathVariable Long id,
+            @RequestParam(required = false) String srNumber) {
+        return ResponseEntity.ok(releaseHistoryService.updateSrNumber(id, srNumber));
+    }
 }
