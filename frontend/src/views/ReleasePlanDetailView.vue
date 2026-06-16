@@ -1,80 +1,92 @@
 <template>
-  <div class="max-w-3xl mx-auto">
+  <div class="max-w-6xl">
     <router-link to="/" class="text-sm text-blue-600 hover:underline">← 반영 계획서 목록</router-link>
 
     <div v-if="plan" class="mt-4">
-      <div class="card mb-6">
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="text-lg font-bold text-gray-800">{{ plan.title }}</h2>
-          <button @click="downloadDoc(plan.docPath)" class="btn-secondary text-sm">⬇ docx 다운로드</button>
+      <div class="card mb-6 flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-gray-800">{{ plan.title }}</h2>
+          <p class="text-xs text-gray-400 mt-1">{{ plan.createdAt }}</p>
         </div>
-        <p class="text-xs text-gray-400">{{ plan.createdAt }}</p>
+        <button @click="downloadDoc(plan.docPath)" class="btn-secondary text-sm">⬇ docx 다운로드</button>
+      </div>
 
-        <div class="border-t mt-4 pt-4">
-          <h4 class="text-sm font-semibold text-gray-700 mb-3">2단계 · diff 기반 분석</h4>
-          <div class="grid grid-cols-3 gap-3 mb-3">
-            <div class="col-span-3">
+      <div class="grid grid-cols-3 gap-6">
+        <section class="card col-span-1 self-start">
+          <h3 class="section-title">2단계 · diff 기반 분석</h3>
+          <div class="space-y-3">
+            <div>
               <label class="label">git 저장소 경로</label>
               <input v-model="gitForm.repoPath" type="text" class="input" placeholder="/path/to/repo" />
             </div>
-            <div>
-              <label class="label">From commit</label>
-              <input v-model="gitForm.commitFrom" type="text" class="input font-mono text-sm" placeholder="HEAD~1" />
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">From commit</label>
+                <input v-model="gitForm.commitFrom" type="text" class="input font-mono text-sm" placeholder="HEAD~1" />
+              </div>
+              <div>
+                <label class="label">To commit</label>
+                <input v-model="gitForm.commitTo" type="text" class="input font-mono text-sm" placeholder="HEAD" />
+              </div>
             </div>
-            <div>
-              <label class="label">To commit</label>
-              <input v-model="gitForm.commitTo" type="text" class="input font-mono text-sm" placeholder="HEAD" />
+            <div class="flex gap-3">
+              <button @click="runSideEffect" :disabled="!gitForm.repoPath || loading.sideEffect" class="btn-secondary flex-1">
+                <span v-if="loading.sideEffect">분석 중...</span>
+                <span v-else>사이드이펙트</span>
+              </button>
+              <button @click="runVuln" :disabled="!gitForm.repoPath || loading.vuln" class="btn-secondary flex-1">
+                <span v-if="loading.vuln">분석 중...</span>
+                <span v-else>취약점 체크</span>
+              </button>
+            </div>
+            <div v-if="phase2Results.length" class="space-y-2 pt-2">
+              <div v-for="r in phase2Results" :key="r.type" class="flex items-center justify-between bg-gray-50 rounded p-2 text-sm">
+                <span class="text-gray-600">{{ r.type }}</span>
+                <button @click="downloadDoc(r.docPath)" class="text-blue-600 hover:underline text-xs">⬇</button>
+              </div>
             </div>
           </div>
-          <div class="flex gap-3">
-            <button @click="runSideEffect" :disabled="!gitForm.repoPath || loading.sideEffect" class="btn-secondary flex-1">
-              <span v-if="loading.sideEffect">분석 중...</span>
-              <span v-else>사이드이펙트 체크</span>
-            </button>
-            <button @click="runVuln" :disabled="!gitForm.repoPath || loading.vuln" class="btn-secondary flex-1">
-              <span v-if="loading.vuln">분석 중...</span>
-              <span v-else>웹 취약점 체크</span>
-            </button>
-          </div>
-          <div v-if="phase2Results.length" class="mt-3 space-y-2">
-            <div v-for="r in phase2Results" :key="r.type" class="flex items-center justify-between bg-gray-50 rounded p-2 text-sm">
-              <span class="text-gray-600">{{ r.type }}</span>
-              <button @click="downloadDoc(r.docPath)" class="text-blue-600 hover:underline text-xs">⬇ 다운로드</button>
+
+          <div class="border-t mt-5 pt-5">
+            <h3 class="section-title">반영 이력 추가</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="label">메모</label>
+                <input v-model="historyForm.memo" type="text" class="input" placeholder="배포 메모 (선택)" />
+              </div>
+              <button @click="createHistory" :disabled="loading.history" class="btn-primary w-full">
+                <span v-if="loading.history">추가 중...</span>
+                <span v-else>+ 반영이력 추가</span>
+              </button>
             </div>
           </div>
-        </div>
+        </section>
+
+        <section class="card col-span-2">
+          <h3 class="section-title">반영 이력 목록</h3>
+          <div v-if="histories.length === 0" class="text-gray-400 text-sm">반영 이력이 없습니다.</div>
+          <table v-else class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-gray-400 border-b">
+                <th class="py-2 pr-3 font-medium">ID</th>
+                <th class="py-2 pr-3 font-medium">상태</th>
+                <th class="py-2 pr-3 font-medium">메모</th>
+                <th class="py-2 pr-3 font-medium">생성일</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="h in histories" :key="h.id"
+                class="border-b last:border-b-0 hover:bg-gray-50 cursor-pointer"
+                @click="$router.push(`/release-histories/${h.id}`)">
+                <td class="py-3 pr-3"><span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono">#{{ h.id }}</span></td>
+                <td class="py-3 pr-3"><span class="text-xs px-2 py-0.5 rounded" :class="statusClass(h.status)">{{ h.status }}</span></td>
+                <td class="py-3 pr-3 text-gray-700">{{ h.memo || '-' }}</td>
+                <td class="py-3 pr-3 text-gray-400">{{ h.createdAt }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
       </div>
-
-      <!-- 반영이력 -->
-      <section class="card mb-6">
-        <h3 class="section-title">반영 이력 추가</h3>
-        <div class="flex gap-3 items-end">
-          <div class="flex-1">
-            <label class="label">메모</label>
-            <input v-model="historyForm.memo" type="text" class="input" placeholder="배포 메모 (선택)" />
-          </div>
-          <button @click="createHistory" :disabled="loading.history" class="btn-primary">
-            <span v-if="loading.history">추가 중...</span>
-            <span v-else>+ 반영이력 추가</span>
-          </button>
-        </div>
-      </section>
-
-      <section class="card">
-        <h3 class="section-title">반영 이력 목록</h3>
-        <div v-if="histories.length === 0" class="text-gray-400 text-sm">반영 이력이 없습니다.</div>
-        <div v-else class="space-y-2">
-          <router-link v-for="h in histories" :key="h.id" :to="`/release-histories/${h.id}`"
-            class="flex items-center justify-between py-2 border-b last:border-b-0 hover:bg-gray-50 px-2 -mx-2 rounded">
-            <div>
-              <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono mr-2">#{{ h.id }}</span>
-              <span class="text-sm px-2 py-0.5 rounded mr-2" :class="statusClass(h.status)">{{ h.status }}</span>
-              <span class="text-sm text-gray-700">{{ h.memo }}</span>
-            </div>
-            <span class="text-xs text-gray-400">{{ h.createdAt }}</span>
-          </router-link>
-        </div>
-      </section>
     </div>
 
     <div v-if="error" class="mt-4 bg-red-50 border border-red-200 text-red-700 rounded p-3 text-sm">{{ error }}</div>
