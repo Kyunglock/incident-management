@@ -46,19 +46,6 @@
             <h4 class="text-xs font-semibold text-gray-500 mb-1">비고</h4>
             <p class="text-gray-700">{{ history.note || '-' }}</p>
           </div>
-
-          <!-- 매핑된 커밋 -->
-          <div class="col-span-2">
-            <h4 class="text-xs font-semibold text-gray-500 mb-2">매핑된 git 커밋 ({{ history.commits?.length || 0 }})</h4>
-            <div v-if="history.commits?.length" class="space-y-1 max-h-40 overflow-y-auto">
-              <div v-for="c in history.commits" :key="c.hash" class="text-xs">
-                <span class="font-mono text-blue-600">{{ c.hash?.slice(0, 7) }}</span>
-                <span class="text-gray-700"> {{ c.message }}</span>
-                <span class="text-gray-400"> · {{ c.author }}</span>
-              </div>
-            </div>
-            <p v-else class="text-xs text-gray-400">매핑된 커밋이 없습니다.</p>
-          </div>
         </div>
       </div>
 
