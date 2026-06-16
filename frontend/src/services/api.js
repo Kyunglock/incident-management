@@ -30,6 +30,9 @@ export const getReleaseHistories = (planId) =>
 
 export const getReleaseHistory = (id) => api.get(`/release-histories/${id}`)
 
+export const updateFinalConfirmed = (id, finalConfirmed) =>
+  api.patch(`/release-histories/${id}/final-confirm`, null, { params: { finalConfirmed } })
+
 // 장애이력 (반영이력 하위)
 export const createIncident = (historyId, params) =>
   api.post(`/release-histories/${historyId}/incidents`, null, { params })

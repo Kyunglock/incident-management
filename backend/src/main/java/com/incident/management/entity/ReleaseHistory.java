@@ -8,6 +8,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 반영 이력. 엑셀 "시스템 반영 작업 요청" 한 행(row) = 1 SR 과 1:1로 매핑된다.
+ */
 @Entity
 @Table(name = "release_history")
 @Data
@@ -24,22 +27,41 @@ public class ReleaseHistory {
     @JoinColumn(name = "release_plan_id", nullable = false)
     private ReleasePlan releasePlan;
 
-    private LocalDateTime deployedAt;
+    /** 서비스 */
+    private String service;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @Builder.Default
-    private Status status = Status.PENDING;
-
+    /** 작업내용 */
     @Column(columnDefinition = "TEXT")
-    private String memo;
+    private String workContent;
 
-    /** 매핑된 SR 번호 목록 (자유 입력 문자열) */
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "release_history_sr", joinColumns = @JoinColumn(name = "release_history_id"))
-    @Column(name = "sr_number")
+    /** 요청자 */
+    private String requester;
+
+    /** 작업자 */
+    private String worker;
+
+    /** TEST URL - 검수 */
+    private String testUrlVerify;
+
+    /** TEST URL - 운영 */
+    private String testUrlProd;
+
+    /** TEST 상세 */
+    @Column(columnDefinition = "TEXT")
+    private String testDetail;
+
+    /** Frontend 작업 여부 */
+    private Boolean frontendChanged;
+
+    /** Backend 작업 여부 */
+    private Boolean backendChanged;
+
+    /** 비고 */
+    private String note;
+
+    /** 최종확인 */
     @Builder.Default
-    private List<String> srNumbers = new ArrayList<>();
+    private Boolean finalConfirmed = false;
 
     /** 매핑된 git 커밋 목록 */
     @ElementCollection(fetch = FetchType.EAGER)
@@ -50,8 +72,4 @@ public class ReleaseHistory {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
-
-    public enum Status {
-        PENDING, DEPLOYED, ROLLED_BACK
-    }
 }

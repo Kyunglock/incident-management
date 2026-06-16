@@ -6,26 +6,46 @@
       <div class="card mb-6">
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="text-xl font-bold text-gray-800">반영 이력 #{{ history.id }}</h2>
-            <p class="text-sm text-gray-600 mt-1">{{ history.memo || '메모 없음' }}</p>
-            <p class="text-xs text-gray-400 mt-1">배포일: {{ history.deployedAt }}</p>
+            <h2 class="text-xl font-bold text-gray-800">{{ history.service }} · 반영 이력 #{{ history.id }}</h2>
+            <p class="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{{ history.workContent || '작업 내용 없음' }}</p>
           </div>
-          <span class="text-sm px-2 py-0.5 rounded" :class="statusClass(history.status)">{{ history.status }}</span>
+          <button @click="toggleFinalConfirm" :disabled="loading.confirm"
+            class="text-sm px-3 py-1 rounded font-medium"
+            :class="history.finalConfirmed ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'">
+            {{ history.finalConfirmed ? '✓ 최종확인 완료' : '최종확인 대기' }}
+          </button>
         </div>
 
-        <div class="grid grid-cols-2 gap-6 mt-5 pt-5 border-t">
-          <!-- 매핑된 SR -->
+        <div class="grid grid-cols-2 gap-6 mt-5 pt-5 border-t text-sm">
           <div>
-            <h4 class="text-xs font-semibold text-gray-500 mb-2">매핑된 SR ({{ history.srNumbers?.length || 0 }})</h4>
-            <div v-if="history.srNumbers?.length" class="flex flex-wrap gap-1.5">
-              <span v-for="sr in history.srNumbers" :key="sr"
-                class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">{{ sr }}</span>
-            </div>
-            <p v-else class="text-xs text-gray-400">매핑된 SR이 없습니다.</p>
+            <h4 class="text-xs font-semibold text-gray-500 mb-1">요청자 / 작업자</h4>
+            <p class="text-gray-700">{{ history.requester || '-' }} / {{ history.worker || '-' }}</p>
+          </div>
+          <div>
+            <h4 class="text-xs font-semibold text-gray-500 mb-1">Frontend / Backend</h4>
+            <p class="text-gray-700">{{ history.frontendChanged ? 'O' : '-' }} / {{ history.backendChanged ? 'O' : '-' }}</p>
+          </div>
+          <div>
+            <h4 class="text-xs font-semibold text-gray-500 mb-1">TEST URL (검수)</h4>
+            <a v-if="history.testUrlVerify" :href="history.testUrlVerify" target="_blank" class="text-blue-600 hover:underline break-all">{{ history.testUrlVerify }}</a>
+            <p v-else class="text-gray-400">-</p>
+          </div>
+          <div>
+            <h4 class="text-xs font-semibold text-gray-500 mb-1">TEST URL (운영)</h4>
+            <a v-if="history.testUrlProd" :href="history.testUrlProd" target="_blank" class="text-blue-600 hover:underline break-all">{{ history.testUrlProd }}</a>
+            <p v-else class="text-gray-400">-</p>
+          </div>
+          <div class="col-span-2">
+            <h4 class="text-xs font-semibold text-gray-500 mb-1">TEST 상세</h4>
+            <p class="text-gray-700 whitespace-pre-wrap">{{ history.testDetail || '-' }}</p>
+          </div>
+          <div class="col-span-2">
+            <h4 class="text-xs font-semibold text-gray-500 mb-1">비고</h4>
+            <p class="text-gray-700">{{ history.note || '-' }}</p>
           </div>
 
           <!-- 매핑된 커밋 -->
-          <div>
+          <div class="col-span-2">
             <h4 class="text-xs font-semibold text-gray-500 mb-2">매핑된 git 커밋 ({{ history.commits?.length || 0 }})</h4>
             <div v-if="history.commits?.length" class="space-y-1 max-h-40 overflow-y-auto">
               <div v-for="c in history.commits" :key="c.hash" class="text-xs">
@@ -86,7 +106,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getReleaseHistory, createIncident, getIncidents, getReleasePlan } from '../services/api.js'
+import { getReleaseHistory, createIncident, getIncidents, getReleasePlan, updateFinalConfirmed } from '../services/api.js'
 import Breadcrumb from '../components/Breadcrumb.vue'
 
 const route = useRoute()
@@ -102,14 +122,20 @@ const breadcrumbItems = computed(() => [
   { label: `반영 이력 #${historyId}`, to: null },
 ])
 const error = ref('')
-const loading = reactive({ incident: false })
+const loading = reactive({ incident: false, confirm: false })
 const incidentForm = reactive({ symptom: '' })
 
-const statusClass = (status) => ({
-  PENDING: 'bg-gray-100 text-gray-600',
-  DEPLOYED: 'bg-green-100 text-green-700',
-  ROLLED_BACK: 'bg-red-100 text-red-700',
-}[status] || 'bg-gray-100 text-gray-600')
+const toggleFinalConfirm = async () => {
+  loading.confirm = true
+  try {
+    const res = await updateFinalConfirmed(historyId, !history.value.finalConfirmed)
+    history.value = res.data
+  } catch (e) {
+    error.value = '최종확인 상태 변경 실패'
+  } finally {
+    loading.confirm = false
+  }
+}
 
 const load = async () => {
   const [historyRes, incidentsRes] = await Promise.all([

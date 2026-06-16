@@ -48,28 +48,51 @@
           </div>
 
           <div class="border-t mt-5 pt-5">
-            <h3 class="section-title">반영 이력 추가</h3>
+            <h3 class="section-title">반영 이력 추가 (SR 1건)</h3>
             <div class="space-y-3">
               <div>
-                <label class="label">메모</label>
-                <input v-model="historyForm.memo" type="text" class="input" placeholder="배포 메모 (선택)" />
+                <label class="label">서비스</label>
+                <input v-model="historyForm.service" type="text" class="input" placeholder="예) 에듀넷" />
               </div>
-
-              <!-- SR 번호 매핑 (여러 개) -->
               <div>
-                <label class="label">SR 번호 매핑</label>
-                <div class="flex gap-2">
-                  <input v-model="srInput" type="text" class="input" placeholder="예) SR-2026-001"
-                    @keyup.enter="addSr" />
-                  <button @click="addSr" class="btn-secondary text-sm whitespace-nowrap">추가</button>
+                <label class="label">작업내용</label>
+                <textarea v-model="historyForm.workContent" rows="2" class="input" placeholder="작업 내용"></textarea>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="label">요청자</label>
+                  <input v-model="historyForm.requester" type="text" class="input" />
                 </div>
-                <div v-if="historyForm.srNumbers.length" class="flex flex-wrap gap-1.5 mt-2">
-                  <span v-for="(sr, idx) in historyForm.srNumbers" :key="idx"
-                    class="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
-                    {{ sr }}
-                    <button @click="removeSr(idx)" class="text-indigo-400 hover:text-indigo-700">×</button>
-                  </span>
+                <div>
+                  <label class="label">작업자</label>
+                  <input v-model="historyForm.worker" type="text" class="input" />
                 </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="label">TEST URL (검수)</label>
+                  <input v-model="historyForm.testUrlVerify" type="text" class="input text-sm" placeholder="https://dev..." />
+                </div>
+                <div>
+                  <label class="label">TEST URL (운영)</label>
+                  <input v-model="historyForm.testUrlProd" type="text" class="input text-sm" placeholder="https://www..." />
+                </div>
+              </div>
+              <div>
+                <label class="label">TEST 상세</label>
+                <textarea v-model="historyForm.testDetail" rows="2" class="input" placeholder="테스트 확인 항목"></textarea>
+              </div>
+              <div class="flex gap-4 items-center">
+                <label class="flex items-center gap-1.5 text-sm text-gray-700">
+                  <input type="checkbox" v-model="historyForm.frontendChanged" class="w-4 h-4" /> Frontend
+                </label>
+                <label class="flex items-center gap-1.5 text-sm text-gray-700">
+                  <input type="checkbox" v-model="historyForm.backendChanged" class="w-4 h-4" /> Backend
+                </label>
+              </div>
+              <div>
+                <label class="label">비고</label>
+                <input v-model="historyForm.note" type="text" class="input" placeholder="비고 (선택)" />
               </div>
 
               <!-- git 커밋 매핑 (체크박스) -->
@@ -102,7 +125,7 @@
                 </p>
               </div>
 
-              <button @click="createHistory" :disabled="loading.history" class="btn-primary w-full">
+              <button @click="createHistory" :disabled="!historyForm.service || loading.history" class="btn-primary w-full">
                 <span v-if="loading.history">추가 중...</span>
                 <span v-else>+ 반영이력 추가</span>
               </button>
@@ -110,33 +133,43 @@
           </div>
         </section>
 
-        <section class="card col-span-2">
-          <h3 class="section-title">반영 이력 목록</h3>
+        <section class="card col-span-2 self-start">
+          <h3 class="section-title">반영 이력 목록 (SR 단위)</h3>
           <div v-if="histories.length === 0" class="text-gray-400 text-sm">반영 이력이 없습니다.</div>
-          <table v-else class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-gray-400 border-b">
-                <th class="py-2 pr-3 font-medium">ID</th>
-                <th class="py-2 pr-3 font-medium">상태</th>
-                <th class="py-2 pr-3 font-medium">메모</th>
-                <th class="py-2 pr-3 font-medium">SR</th>
-                <th class="py-2 pr-3 font-medium">커밋</th>
-                <th class="py-2 pr-3 font-medium">생성일</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="h in histories" :key="h.id"
-                class="border-b last:border-b-0 hover:bg-gray-50 cursor-pointer"
-                @click="$router.push(`/release-histories/${h.id}`)">
-                <td class="py-3 pr-3"><span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono">#{{ h.id }}</span></td>
-                <td class="py-3 pr-3"><span class="text-xs px-2 py-0.5 rounded" :class="statusClass(h.status)">{{ h.status }}</span></td>
-                <td class="py-3 pr-3 text-gray-700">{{ h.memo || '-' }}</td>
-                <td class="py-3 pr-3 text-gray-500">{{ h.srNumbers?.length || 0 }}건</td>
-                <td class="py-3 pr-3 text-gray-500">{{ h.commits?.length || 0 }}개</td>
-                <td class="py-3 pr-3 text-gray-400">{{ h.createdAt }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div v-else class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[860px]">
+              <thead>
+                <tr class="text-left text-gray-400 border-b">
+                  <th class="py-2 pr-3 font-medium">No</th>
+                  <th class="py-2 pr-3 font-medium">서비스</th>
+                  <th class="py-2 pr-3 font-medium">작업내용</th>
+                  <th class="py-2 pr-3 font-medium">요청자</th>
+                  <th class="py-2 pr-3 font-medium">작업자</th>
+                  <th class="py-2 pr-3 font-medium text-center">FE</th>
+                  <th class="py-2 pr-3 font-medium text-center">BE</th>
+                  <th class="py-2 pr-3 font-medium">비고</th>
+                  <th class="py-2 pr-3 font-medium text-center bg-red-50">최종확인</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(h, idx) in histories" :key="h.id"
+                  class="border-b last:border-b-0 hover:bg-gray-50 cursor-pointer"
+                  @click="$router.push(`/release-histories/${h.id}`)">
+                  <td class="py-3 pr-3 text-gray-400">{{ idx + 1 }}</td>
+                  <td class="py-3 pr-3 text-gray-700">{{ h.service || '-' }}</td>
+                  <td class="py-3 pr-3 text-gray-700">{{ h.workContent || '-' }}</td>
+                  <td class="py-3 pr-3 text-gray-500">{{ h.requester || '-' }}</td>
+                  <td class="py-3 pr-3 text-gray-500">{{ h.worker || '-' }}</td>
+                  <td class="py-3 pr-3 text-center">{{ h.frontendChanged ? 'O' : '' }}</td>
+                  <td class="py-3 pr-3 text-center">{{ h.backendChanged ? 'O' : '' }}</td>
+                  <td class="py-3 pr-3 text-gray-500">{{ h.note || '-' }}</td>
+                  <td class="py-3 pr-3 text-center bg-red-50" :class="h.finalConfirmed ? 'text-green-600' : 'text-gray-300'">
+                    {{ h.finalConfirmed ? 'O' : '-' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </div>
@@ -170,16 +203,18 @@ const error = ref('')
 const loading = reactive({ sideEffect: false, vuln: false, history: false, commits: false })
 
 const gitForm = reactive({ repoPath: '', commitFrom: '', commitTo: '' })
-const historyForm = reactive({ memo: '', srNumbers: [] })
-
-// SR 입력
-const srInput = ref('')
-const addSr = () => {
-  const v = srInput.value.trim()
-  if (v && !historyForm.srNumbers.includes(v)) historyForm.srNumbers.push(v)
-  srInput.value = ''
-}
-const removeSr = (idx) => historyForm.srNumbers.splice(idx, 1)
+const historyForm = reactive({
+  service: '',
+  workContent: '',
+  requester: '',
+  worker: '',
+  testUrlVerify: '',
+  testUrlProd: '',
+  testDetail: '',
+  frontendChanged: false,
+  backendChanged: false,
+  note: '',
+})
 
 // git 커밋
 const systems = ref([])
@@ -200,12 +235,6 @@ const loadCommits = async () => {
     loading.commits = false
   }
 }
-
-const statusClass = (status) => ({
-  PENDING: 'bg-gray-100 text-gray-600',
-  DEPLOYED: 'bg-green-100 text-green-700',
-  ROLLED_BACK: 'bg-red-100 text-red-700',
-}[status] || 'bg-gray-100 text-gray-600')
 
 const load = async () => {
   const [planRes, historiesRes] = await Promise.all([
@@ -251,12 +280,28 @@ const createHistory = async () => {
   try {
     const selectedCommits = commitList.value.filter(c => selectedCommitHashes.value.includes(c.hash))
     await createReleaseHistory(planId, {
-      memo: historyForm.memo || null,
-      srNumbers: historyForm.srNumbers,
+      service: historyForm.service,
+      workContent: historyForm.workContent || null,
+      requester: historyForm.requester || null,
+      worker: historyForm.worker || null,
+      testUrlVerify: historyForm.testUrlVerify || null,
+      testUrlProd: historyForm.testUrlProd || null,
+      testDetail: historyForm.testDetail || null,
+      frontendChanged: historyForm.frontendChanged,
+      backendChanged: historyForm.backendChanged,
+      note: historyForm.note || null,
       commits: selectedCommits,
     })
-    historyForm.memo = ''
-    historyForm.srNumbers = []
+    historyForm.service = ''
+    historyForm.workContent = ''
+    historyForm.requester = ''
+    historyForm.worker = ''
+    historyForm.testUrlVerify = ''
+    historyForm.testUrlProd = ''
+    historyForm.testDetail = ''
+    historyForm.frontendChanged = false
+    historyForm.backendChanged = false
+    historyForm.note = ''
     selectedCommitHashes.value = []
     commitList.value = []
     commitsLoaded.value = false
