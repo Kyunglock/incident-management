@@ -1,6 +1,8 @@
 package com.incident.management.service;
 
+import com.incident.management.dto.request.CreateReleaseHistoryRequest;
 import com.incident.management.dto.response.ReleaseHistoryResponse;
+import com.incident.management.entity.CommitRef;
 import com.incident.management.entity.ReleaseHistory;
 import com.incident.management.entity.ReleasePlan;
 import com.incident.management.exception.ResourceNotFoundException;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,14 +26,32 @@ public class ReleaseHistoryService {
     private final ReleasePlanRepository releasePlanRepository;
 
     @Transactional
-    public ReleaseHistoryResponse create(Long releasePlanId, LocalDateTime deployedAt, String memo) {
+    public ReleaseHistoryResponse create(Long releasePlanId, CreateReleaseHistoryRequest request) {
         ReleasePlan plan = releasePlanRepository.findById(releasePlanId)
                 .orElseThrow(() -> new ResourceNotFoundException("반영 계획서를 찾을 수 없습니다: " + releasePlanId));
 
+        List<String> srNumbers = request.getSrNumbers() == null ? new ArrayList<>()
+                : request.getSrNumbers().stream()
+                        .filter(s -> s != null && !s.isBlank())
+                        .map(String::trim)
+                        .collect(Collectors.toList());
+
+        List<CommitRef> commits = request.getCommits() == null ? new ArrayList<>()
+                : request.getCommits().stream()
+                        .map(c -> CommitRef.builder()
+                                .hash(c.getHash())
+                                .author(c.getAuthor())
+                                .date(c.getDate())
+                                .message(c.getMessage())
+                                .build())
+                        .collect(Collectors.toList());
+
         ReleaseHistory history = ReleaseHistory.builder()
                 .releasePlan(plan)
-                .deployedAt(deployedAt != null ? deployedAt : LocalDateTime.now())
-                .memo(memo)
+                .deployedAt(request.getDeployedAt() != null ? request.getDeployedAt() : LocalDateTime.now())
+                .memo(request.getMemo())
+                .srNumbers(srNumbers)
+                .commits(commits)
                 .build();
         history = releaseHistoryRepository.save(history);
         return toResponse(history);
@@ -62,6 +83,8 @@ public class ReleaseHistoryService {
                 .deployedAt(history.getDeployedAt())
                 .status(history.getStatus())
                 .memo(history.getMemo())
+                .srNumbers(history.getSrNumbers())
+                .commits(history.getCommits())
                 .createdAt(history.getCreatedAt())
                 .build();
     }

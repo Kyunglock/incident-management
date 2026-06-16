@@ -54,6 +54,54 @@
                 <label class="label">메모</label>
                 <input v-model="historyForm.memo" type="text" class="input" placeholder="배포 메모 (선택)" />
               </div>
+
+              <!-- SR 번호 매핑 (여러 개) -->
+              <div>
+                <label class="label">SR 번호 매핑</label>
+                <div class="flex gap-2">
+                  <input v-model="srInput" type="text" class="input" placeholder="예) SR-2026-001"
+                    @keyup.enter="addSr" />
+                  <button @click="addSr" class="btn-secondary text-sm whitespace-nowrap">추가</button>
+                </div>
+                <div v-if="historyForm.srNumbers.length" class="flex flex-wrap gap-1.5 mt-2">
+                  <span v-for="(sr, idx) in historyForm.srNumbers" :key="idx"
+                    class="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
+                    {{ sr }}
+                    <button @click="removeSr(idx)" class="text-indigo-400 hover:text-indigo-700">×</button>
+                  </span>
+                </div>
+              </div>
+
+              <!-- git 커밋 매핑 (체크박스) -->
+              <div>
+                <label class="label">git 커밋 매핑</label>
+                <div class="flex gap-2">
+                  <select v-if="systems.length" v-model="commitSystem" class="input py-1 text-sm">
+                    <option value="">기본 저장소</option>
+                    <option v-for="s in systems" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                  <button @click="loadCommits" :disabled="loading.commits" class="btn-secondary text-sm whitespace-nowrap">
+                    <span v-if="loading.commits">불러오는 중...</span>
+                    <span v-else>커밋 불러오기</span>
+                  </button>
+                </div>
+                <div v-if="commitList.length" class="mt-2 border rounded max-h-56 overflow-y-auto divide-y">
+                  <label v-for="c in commitList" :key="c.hash"
+                    class="flex items-start gap-2 p-2 text-xs hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" :value="c.hash" v-model="selectedCommitHashes" class="mt-0.5" />
+                    <span class="flex-1">
+                      <span class="font-mono text-blue-600">{{ c.hash.slice(0, 7) }}</span>
+                      <span class="text-gray-700"> {{ c.message }}</span>
+                      <span class="block text-gray-400">{{ c.author }} · {{ c.date }}</span>
+                    </span>
+                  </label>
+                </div>
+                <p v-else-if="commitsLoaded" class="text-xs text-gray-400 mt-2">커밋이 없습니다.</p>
+                <p v-if="selectedCommitHashes.length" class="text-xs text-gray-500 mt-1">
+                  {{ selectedCommitHashes.length }}개 커밋 선택됨
+                </p>
+              </div>
+
               <button @click="createHistory" :disabled="loading.history" class="btn-primary w-full">
                 <span v-if="loading.history">추가 중...</span>
                 <span v-else>+ 반영이력 추가</span>
@@ -71,6 +119,8 @@
                 <th class="py-2 pr-3 font-medium">ID</th>
                 <th class="py-2 pr-3 font-medium">상태</th>
                 <th class="py-2 pr-3 font-medium">메모</th>
+                <th class="py-2 pr-3 font-medium">SR</th>
+                <th class="py-2 pr-3 font-medium">커밋</th>
                 <th class="py-2 pr-3 font-medium">생성일</th>
               </tr>
             </thead>
@@ -81,6 +131,8 @@
                 <td class="py-3 pr-3"><span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono">#{{ h.id }}</span></td>
                 <td class="py-3 pr-3"><span class="text-xs px-2 py-0.5 rounded" :class="statusClass(h.status)">{{ h.status }}</span></td>
                 <td class="py-3 pr-3 text-gray-700">{{ h.memo || '-' }}</td>
+                <td class="py-3 pr-3 text-gray-500">{{ h.srNumbers?.length || 0 }}건</td>
+                <td class="py-3 pr-3 text-gray-500">{{ h.commits?.length || 0 }}개</td>
                 <td class="py-3 pr-3 text-gray-400">{{ h.createdAt }}</td>
               </tr>
             </tbody>
@@ -99,6 +151,7 @@ import { useRoute } from 'vue-router'
 import {
   getReleasePlan, analyzeSideEffect, analyzeVuln,
   createReleaseHistory, getReleaseHistories, downloadDocument,
+  getGitCommits, getGitSystems,
 } from '../services/api.js'
 import Breadcrumb from '../components/Breadcrumb.vue'
 
@@ -114,10 +167,39 @@ const breadcrumbItems = computed(() => [
 const histories = ref([])
 const phase2Results = ref([])
 const error = ref('')
-const loading = reactive({ sideEffect: false, vuln: false, history: false })
+const loading = reactive({ sideEffect: false, vuln: false, history: false, commits: false })
 
 const gitForm = reactive({ repoPath: '', commitFrom: '', commitTo: '' })
-const historyForm = reactive({ memo: '' })
+const historyForm = reactive({ memo: '', srNumbers: [] })
+
+// SR 입력
+const srInput = ref('')
+const addSr = () => {
+  const v = srInput.value.trim()
+  if (v && !historyForm.srNumbers.includes(v)) historyForm.srNumbers.push(v)
+  srInput.value = ''
+}
+const removeSr = (idx) => historyForm.srNumbers.splice(idx, 1)
+
+// git 커밋
+const systems = ref([])
+const commitSystem = ref('')
+const commitList = ref([])
+const selectedCommitHashes = ref([])
+const commitsLoaded = ref(false)
+
+const loadCommits = async () => {
+  loading.commits = true
+  try {
+    const res = await getGitCommits({ system: commitSystem.value || undefined })
+    commitList.value = res.data
+    commitsLoaded.value = true
+  } catch (e) {
+    error.value = '커밋 목록을 불러오지 못했습니다.'
+  } finally {
+    loading.commits = false
+  }
+}
 
 const statusClass = (status) => ({
   PENDING: 'bg-gray-100 text-gray-600',
@@ -132,6 +214,10 @@ const load = async () => {
   ])
   plan.value = planRes.data
   histories.value = historiesRes.data
+  try {
+    const sysRes = await getGitSystems()
+    systems.value = sysRes.data
+  } catch (e) { /* 시스템 목록 없으면 기본 저장소만 사용 */ }
 }
 
 onMounted(load)
@@ -163,8 +249,17 @@ const runVuln = async () => {
 const createHistory = async () => {
   loading.history = true
   try {
-    await createReleaseHistory(planId, { memo: historyForm.memo || undefined })
+    const selectedCommits = commitList.value.filter(c => selectedCommitHashes.value.includes(c.hash))
+    await createReleaseHistory(planId, {
+      memo: historyForm.memo || null,
+      srNumbers: historyForm.srNumbers,
+      commits: selectedCommits,
+    })
     historyForm.memo = ''
+    historyForm.srNumbers = []
+    selectedCommitHashes.value = []
+    commitList.value = []
+    commitsLoaded.value = false
     const res = await getReleaseHistories(planId)
     histories.value = res.data
   } catch (e) {

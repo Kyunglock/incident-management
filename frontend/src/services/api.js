@@ -16,9 +16,14 @@ export const analyzeSideEffect = (id, params) =>
 export const analyzeVuln = (id, params) =>
   api.post(`/release-plans/${id}/vuln-check`, null, { params })
 
+// git 커밋 (저장소는 백엔드에서 system 키로 분기)
+export const getGitCommits = (params) => api.get('/git/commits', { params })
+
+export const getGitSystems = () => api.get('/git/systems')
+
 // 반영이력 (반영계획서 하위)
-export const createReleaseHistory = (planId, params) =>
-  api.post(`/release-plans/${planId}/histories`, null, { params })
+export const createReleaseHistory = (planId, body) =>
+  api.post(`/release-plans/${planId}/histories`, body)
 
 export const getReleaseHistories = (planId) =>
   api.get(`/release-plans/${planId}/histories`)

@@ -1,5 +1,6 @@
 package com.incident.management.controller;
 
+import com.incident.management.dto.request.CreateReleaseHistoryRequest;
 import com.incident.management.dto.response.ReleaseHistoryResponse;
 import com.incident.management.entity.ReleaseHistory;
 import com.incident.management.service.ReleaseHistoryService;
@@ -7,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -19,9 +19,8 @@ public class ReleaseHistoryController {
     @PostMapping("/api/release-plans/{planId}/histories")
     public ResponseEntity<ReleaseHistoryResponse> create(
             @PathVariable Long planId,
-            @RequestParam(required = false) LocalDateTime deployedAt,
-            @RequestParam(required = false) String memo) {
-        return ResponseEntity.ok(releaseHistoryService.create(planId, deployedAt, memo));
+            @RequestBody CreateReleaseHistoryRequest request) {
+        return ResponseEntity.ok(releaseHistoryService.create(planId, request));
     }
 
     @GetMapping("/api/release-plans/{planId}/histories")

@@ -3,13 +3,40 @@
     <Breadcrumb :items="breadcrumbItems" />
 
     <div v-if="history">
-      <div class="card mb-6 flex items-center justify-between">
-        <div>
-          <h2 class="text-xl font-bold text-gray-800">반영 이력 #{{ history.id }}</h2>
-          <p class="text-sm text-gray-600 mt-1">{{ history.memo || '메모 없음' }}</p>
-          <p class="text-xs text-gray-400 mt-1">배포일: {{ history.deployedAt }}</p>
+      <div class="card mb-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-gray-800">반영 이력 #{{ history.id }}</h2>
+            <p class="text-sm text-gray-600 mt-1">{{ history.memo || '메모 없음' }}</p>
+            <p class="text-xs text-gray-400 mt-1">배포일: {{ history.deployedAt }}</p>
+          </div>
+          <span class="text-sm px-2 py-0.5 rounded" :class="statusClass(history.status)">{{ history.status }}</span>
         </div>
-        <span class="text-sm px-2 py-0.5 rounded" :class="statusClass(history.status)">{{ history.status }}</span>
+
+        <div class="grid grid-cols-2 gap-6 mt-5 pt-5 border-t">
+          <!-- 매핑된 SR -->
+          <div>
+            <h4 class="text-xs font-semibold text-gray-500 mb-2">매핑된 SR ({{ history.srNumbers?.length || 0 }})</h4>
+            <div v-if="history.srNumbers?.length" class="flex flex-wrap gap-1.5">
+              <span v-for="sr in history.srNumbers" :key="sr"
+                class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">{{ sr }}</span>
+            </div>
+            <p v-else class="text-xs text-gray-400">매핑된 SR이 없습니다.</p>
+          </div>
+
+          <!-- 매핑된 커밋 -->
+          <div>
+            <h4 class="text-xs font-semibold text-gray-500 mb-2">매핑된 git 커밋 ({{ history.commits?.length || 0 }})</h4>
+            <div v-if="history.commits?.length" class="space-y-1 max-h-40 overflow-y-auto">
+              <div v-for="c in history.commits" :key="c.hash" class="text-xs">
+                <span class="font-mono text-blue-600">{{ c.hash?.slice(0, 7) }}</span>
+                <span class="text-gray-700"> {{ c.message }}</span>
+                <span class="text-gray-400"> · {{ c.author }}</span>
+              </div>
+            </div>
+            <p v-else class="text-xs text-gray-400">매핑된 커밋이 없습니다.</p>
+          </div>
+        </div>
       </div>
 
       <div class="grid grid-cols-3 gap-6">

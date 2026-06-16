@@ -25,3 +25,11 @@ ai:
   llm:
     base-url: http://100.64.0.1:11434
     model: qwen3-coder:latest
+
+# git 저장소 경로 (커밋 매핑용). 시스템별로 경로를 분기한다.
+# default-repo: system 미지정 시 사용. repositories: 시스템 키 → 저장소 경로
+git:
+  default-repo: ${GIT_DEFAULT_REPO:.}
+  repositories: {}
+    # member: /repos/member-service
+    # payment: /repos/payment-service
