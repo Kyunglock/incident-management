@@ -1,0 +1,22 @@
+## 로컬 전용 설정 템플릿.
+## 이 파일을 application-local.yml 로 복사한 뒤 각자 환경에 맞게 수정하세요.
+## application-local.yml 은 git 에 추적되지 않습니다 (충돌 방지).
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/incident_db
+    username: postgres
+    password: password
+    driver-class-name: org.postgresql.Driver
+
+ai:
+  llm:
+    base-url: http://100.64.0.1:11434
+    model: qwen3-coder:latest
+
+# git 저장소 경로 (커밋 매핑용). 시스템별로 경로를 분기한다.
+git:
+  default-repo: ${GIT_DEFAULT_REPO:.}
+  repositories: {}
+    # member: /repos/member-service
+    # payment: /repos/payment-service
