@@ -2,7 +2,6 @@ package com.incident.management.service;
 
 import com.incident.management.dto.request.CreateReleaseHistoryRequest;
 import com.incident.management.dto.response.ReleaseHistoryResponse;
-import com.incident.management.entity.CommitRef;
 import com.incident.management.entity.ReleaseHistory;
 import com.incident.management.entity.ReleasePlan;
 import com.incident.management.exception.ResourceNotFoundException;
@@ -12,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,20 +31,9 @@ public class ReleaseHistoryService {
         ReleasePlan plan = releasePlanRepository.findById(releasePlanId)
                 .orElseThrow(() -> new ResourceNotFoundException("반영 계획서를 찾을 수 없습니다: " + releasePlanId));
 
-        List<CommitRef> commits = request.getCommits() == null ? new ArrayList<>()
-                : request.getCommits().stream()
-                        .map(c -> CommitRef.builder()
-                                .hash(c.getHash())
-                                .author(c.getAuthor())
-                                .date(c.getDate())
-                                .message(c.getMessage())
-                                .build())
-                        .collect(Collectors.toList());
-
         ReleaseHistory history = ReleaseHistory.builder()
                 .releasePlan(plan)
                 .srNumber(request.getSrNumber())
-                .commits(commits)
                 .build();
 
         // SR 번호로 레드마인 연동해 서비스/작업내용/요청자 등 상세 정보를 채운다.
@@ -101,7 +88,6 @@ public class ReleaseHistoryService {
                 .backendChanged(history.getBackendChanged())
                 .note(history.getNote())
                 .finalConfirmed(history.getFinalConfirmed())
-                .commits(history.getCommits())
                 .createdAt(history.getCreatedAt())
                 .build();
     }

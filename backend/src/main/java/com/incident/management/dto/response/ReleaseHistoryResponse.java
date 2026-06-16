@@ -1,11 +1,9 @@
 package com.incident.management.dto.response;
 
-import com.incident.management.entity.CommitRef;
 import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Builder
@@ -24,6 +22,5 @@ public class ReleaseHistoryResponse {
     private Boolean backendChanged;
     private String note;
     private Boolean finalConfirmed;
-    private List<CommitRef> commits;
     private LocalDateTime createdAt;
 }

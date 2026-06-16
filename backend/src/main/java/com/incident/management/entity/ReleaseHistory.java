@@ -5,8 +5,6 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * 반영 이력. 엑셀 "시스템 반영 작업 요청" 한 행(row) = 1 SR 과 1:1로 매핑된다.
@@ -65,12 +63,6 @@ public class ReleaseHistory {
     /** 최종확인 */
     @Builder.Default
     private Boolean finalConfirmed = false;
-
-    /** 매핑된 git 커밋 목록 */
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "release_history_commit", joinColumns = @JoinColumn(name = "release_history_id"))
-    @Builder.Default
-    private List<CommitRef> commits = new ArrayList<>();
 
     @CreationTimestamp
     @Column(updatable = false)
