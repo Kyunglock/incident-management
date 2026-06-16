@@ -2,7 +2,6 @@ package com.incident.management.controller;
 
 import com.incident.management.dto.request.CreateReleaseHistoryRequest;
 import com.incident.management.dto.response.ReleaseHistoryResponse;
-import com.incident.management.entity.ReleaseHistory;
 import com.incident.management.service.ReleaseHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -33,10 +32,10 @@ public class ReleaseHistoryController {
         return ResponseEntity.ok(releaseHistoryService.getById(id));
     }
 
-    @PatchMapping("/api/release-histories/{id}/status")
-    public ResponseEntity<ReleaseHistoryResponse> updateStatus(
+    @PatchMapping("/api/release-histories/{id}/final-confirm")
+    public ResponseEntity<ReleaseHistoryResponse> updateFinalConfirmed(
             @PathVariable Long id,
-            @RequestParam ReleaseHistory.Status status) {
-        return ResponseEntity.ok(releaseHistoryService.updateStatus(id, status));
+            @RequestParam boolean finalConfirmed) {
+        return ResponseEntity.ok(releaseHistoryService.updateFinalConfirmed(id, finalConfirmed));
     }
 }

@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,12 +29,6 @@ public class ReleaseHistoryService {
         ReleasePlan plan = releasePlanRepository.findById(releasePlanId)
                 .orElseThrow(() -> new ResourceNotFoundException("반영 계획서를 찾을 수 없습니다: " + releasePlanId));
 
-        List<String> srNumbers = request.getSrNumbers() == null ? new ArrayList<>()
-                : request.getSrNumbers().stream()
-                        .filter(s -> s != null && !s.isBlank())
-                        .map(String::trim)
-                        .collect(Collectors.toList());
-
         List<CommitRef> commits = request.getCommits() == null ? new ArrayList<>()
                 : request.getCommits().stream()
                         .map(c -> CommitRef.builder()
@@ -48,9 +41,16 @@ public class ReleaseHistoryService {
 
         ReleaseHistory history = ReleaseHistory.builder()
                 .releasePlan(plan)
-                .deployedAt(request.getDeployedAt() != null ? request.getDeployedAt() : LocalDateTime.now())
-                .memo(request.getMemo())
-                .srNumbers(srNumbers)
+                .service(request.getService())
+                .workContent(request.getWorkContent())
+                .requester(request.getRequester())
+                .worker(request.getWorker())
+                .testUrlVerify(request.getTestUrlVerify())
+                .testUrlProd(request.getTestUrlProd())
+                .testDetail(request.getTestDetail())
+                .frontendChanged(request.getFrontendChanged())
+                .backendChanged(request.getBackendChanged())
+                .note(request.getNote())
                 .commits(commits)
                 .build();
         history = releaseHistoryRepository.save(history);
@@ -69,10 +69,10 @@ public class ReleaseHistoryService {
     }
 
     @Transactional
-    public ReleaseHistoryResponse updateStatus(Long id, ReleaseHistory.Status status) {
+    public ReleaseHistoryResponse updateFinalConfirmed(Long id, boolean finalConfirmed) {
         ReleaseHistory history = releaseHistoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("반영 이력을 찾을 수 없습니다: " + id));
-        history.setStatus(status);
+        history.setFinalConfirmed(finalConfirmed);
         return toResponse(history);
     }
 
@@ -80,10 +80,17 @@ public class ReleaseHistoryService {
         return ReleaseHistoryResponse.builder()
                 .id(history.getId())
                 .releasePlanId(history.getReleasePlan().getId())
-                .deployedAt(history.getDeployedAt())
-                .status(history.getStatus())
-                .memo(history.getMemo())
-                .srNumbers(history.getSrNumbers())
+                .service(history.getService())
+                .workContent(history.getWorkContent())
+                .requester(history.getRequester())
+                .worker(history.getWorker())
+                .testUrlVerify(history.getTestUrlVerify())
+                .testUrlProd(history.getTestUrlProd())
+                .testDetail(history.getTestDetail())
+                .frontendChanged(history.getFrontendChanged())
+                .backendChanged(history.getBackendChanged())
+                .note(history.getNote())
+                .finalConfirmed(history.getFinalConfirmed())
                 .commits(history.getCommits())
                 .createdAt(history.getCreatedAt())
                 .build();
