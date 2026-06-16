@@ -1,5 +1,6 @@
 <template>
   <div class="max-w-6xl">
+    <Breadcrumb :items="[{ label: '반영 계획서 목록', to: null }]" />
     <h2 class="text-2xl font-bold text-gray-800 mb-6">반영 계획서</h2>
 
     <div class="grid grid-cols-3 gap-6">
@@ -100,6 +101,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { generateReleasePlan, getReleasePlans } from '../services/api.js'
+import Breadcrumb from '../components/Breadcrumb.vue'
 
 const router = useRouter()
 

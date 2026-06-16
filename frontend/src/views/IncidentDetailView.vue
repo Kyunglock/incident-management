@@ -1,10 +1,8 @@
 <template>
   <div class="max-w-6xl">
-    <router-link v-if="incident" :to="`/release-histories/${incident.releaseHistoryId}`" class="text-sm text-blue-600 hover:underline">
-      ← 반영 이력으로 돌아가기
-    </router-link>
+    <Breadcrumb :items="breadcrumbItems" />
 
-    <div v-if="incident" class="mt-4">
+    <div v-if="incident">
       <div class="card mb-6">
         <h2 class="text-xl font-bold text-gray-800">장애 #{{ incident.id }}</h2>
         <p class="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{{ incident.symptom }}</p>
@@ -47,15 +45,25 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getIncident, analyzeIncident, getIncidentAnalyses, downloadDocument } from '../services/api.js'
+import { getIncident, analyzeIncident, getIncidentAnalyses, downloadDocument, getReleaseHistory, getReleasePlan } from '../services/api.js'
+import Breadcrumb from '../components/Breadcrumb.vue'
 
 const route = useRoute()
 const incidentId = route.params.id
 
 const incident = ref(null)
+const history = ref(null)
+const plan = ref(null)
 const analyses = ref([])
+
+const breadcrumbItems = computed(() => [
+  { label: '반영 계획서 목록', to: '/' },
+  { label: plan.value ? plan.value.title : '...', to: plan.value ? `/release-plans/${plan.value.id}` : null },
+  { label: `반영 이력 #${history.value ? history.value.id : ''}`, to: history.value ? `/release-histories/${history.value.id}` : null },
+  { label: `장애 #${incidentId}`, to: null },
+])
 const error = ref('')
 const loading = reactive({ analysis: false })
 const analysisForm = reactive({ errorLogs: '' })
@@ -67,6 +75,10 @@ const load = async () => {
   ])
   incident.value = incidentRes.data
   analyses.value = analysesRes.data
+  const historyRes = await getReleaseHistory(incident.value.releaseHistoryId)
+  history.value = historyRes.data
+  const planRes = await getReleasePlan(history.value.releasePlanId)
+  plan.value = planRes.data
 }
 
 onMounted(load)

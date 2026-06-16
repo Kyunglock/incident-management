@@ -1,10 +1,8 @@
 <template>
   <div class="max-w-6xl">
-    <router-link v-if="history" :to="`/release-plans/${history.releasePlanId}`" class="text-sm text-blue-600 hover:underline">
-      ← 반영 계획서로 돌아가기
-    </router-link>
+    <Breadcrumb :items="breadcrumbItems" />
 
-    <div v-if="history" class="mt-4">
+    <div v-if="history">
       <div class="card mb-6 flex items-center justify-between">
         <div>
           <h2 class="text-xl font-bold text-gray-800">반영 이력 #{{ history.id }}</h2>
@@ -59,15 +57,23 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getReleaseHistory, createIncident, getIncidents } from '../services/api.js'
+import { getReleaseHistory, createIncident, getIncidents, getReleasePlan } from '../services/api.js'
+import Breadcrumb from '../components/Breadcrumb.vue'
 
 const route = useRoute()
 const historyId = route.params.id
 
 const history = ref(null)
+const plan = ref(null)
 const incidents = ref([])
+
+const breadcrumbItems = computed(() => [
+  { label: '반영 계획서 목록', to: '/' },
+  { label: plan.value ? plan.value.title : (history.value ? `#${history.value.releasePlanId}` : '...'), to: history.value ? `/release-plans/${history.value.releasePlanId}` : null },
+  { label: `반영 이력 #${historyId}`, to: null },
+])
 const error = ref('')
 const loading = reactive({ incident: false })
 const incidentForm = reactive({ symptom: '' })
@@ -85,6 +91,8 @@ const load = async () => {
   ])
   history.value = historyRes.data
   incidents.value = incidentsRes.data
+  const planRes = await getReleasePlan(history.value.releasePlanId)
+  plan.value = planRes.data
 }
 
 onMounted(load)
