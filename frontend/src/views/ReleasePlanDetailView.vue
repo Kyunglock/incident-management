@@ -51,48 +51,10 @@
             <h3 class="section-title">반영 이력 추가 (SR 1건)</h3>
             <div class="space-y-3">
               <div>
-                <label class="label">서비스</label>
-                <input v-model="historyForm.service" type="text" class="input" placeholder="예) 에듀넷" />
-              </div>
-              <div>
-                <label class="label">작업내용</label>
-                <textarea v-model="historyForm.workContent" rows="2" class="input" placeholder="작업 내용"></textarea>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="label">요청자</label>
-                  <input v-model="historyForm.requester" type="text" class="input" />
-                </div>
-                <div>
-                  <label class="label">작업자</label>
-                  <input v-model="historyForm.worker" type="text" class="input" />
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="label">TEST URL (검수)</label>
-                  <input v-model="historyForm.testUrlVerify" type="text" class="input text-sm" placeholder="https://dev..." />
-                </div>
-                <div>
-                  <label class="label">TEST URL (운영)</label>
-                  <input v-model="historyForm.testUrlProd" type="text" class="input text-sm" placeholder="https://www..." />
-                </div>
-              </div>
-              <div>
-                <label class="label">TEST 상세</label>
-                <textarea v-model="historyForm.testDetail" rows="2" class="input" placeholder="테스트 확인 항목"></textarea>
-              </div>
-              <div class="flex gap-4 items-center">
-                <label class="flex items-center gap-1.5 text-sm text-gray-700">
-                  <input type="checkbox" v-model="historyForm.frontendChanged" class="w-4 h-4" /> Frontend
-                </label>
-                <label class="flex items-center gap-1.5 text-sm text-gray-700">
-                  <input type="checkbox" v-model="historyForm.backendChanged" class="w-4 h-4" /> Backend
-                </label>
-              </div>
-              <div>
-                <label class="label">비고</label>
-                <input v-model="historyForm.note" type="text" class="input" placeholder="비고 (선택)" />
+                <label class="label">SR 번호 <span class="text-red-500">*</span></label>
+                <input v-model="historyForm.srNumber" type="text" class="input" placeholder="예) SR-2026-0001"
+                  @keyup.enter="createHistory" />
+                <p class="text-xs text-gray-400 mt-1">서비스·작업내용 등 상세 정보는 SR 번호로 레드마인에서 가져옵니다.</p>
               </div>
 
               <!-- git 커밋 매핑 (체크박스) -->
@@ -125,7 +87,7 @@
                 </p>
               </div>
 
-              <button @click="createHistory" :disabled="!historyForm.service || loading.history" class="btn-primary w-full">
+              <button @click="createHistory" :disabled="!historyForm.srNumber || loading.history" class="btn-primary w-full">
                 <span v-if="loading.history">추가 중...</span>
                 <span v-else>+ 반영이력 추가</span>
               </button>
@@ -141,6 +103,7 @@
               <thead>
                 <tr class="text-left text-gray-400 border-b">
                   <th class="py-2 pr-3 font-medium">No</th>
+                  <th class="py-2 pr-3 font-medium">SR</th>
                   <th class="py-2 pr-3 font-medium">서비스</th>
                   <th class="py-2 pr-3 font-medium">작업내용</th>
                   <th class="py-2 pr-3 font-medium">요청자</th>
@@ -156,6 +119,7 @@
                   class="border-b last:border-b-0 hover:bg-gray-50 cursor-pointer"
                   @click="$router.push(`/release-histories/${h.id}`)">
                   <td class="py-3 pr-3 text-gray-400">{{ idx + 1 }}</td>
+                  <td class="py-3 pr-3"><span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono">{{ h.srNumber }}</span></td>
                   <td class="py-3 pr-3 text-gray-700">{{ h.service || '-' }}</td>
                   <td class="py-3 pr-3 text-gray-700">{{ h.workContent || '-' }}</td>
                   <td class="py-3 pr-3 text-gray-500">{{ h.requester || '-' }}</td>
@@ -203,18 +167,7 @@ const error = ref('')
 const loading = reactive({ sideEffect: false, vuln: false, history: false, commits: false })
 
 const gitForm = reactive({ repoPath: '', commitFrom: '', commitTo: '' })
-const historyForm = reactive({
-  service: '',
-  workContent: '',
-  requester: '',
-  worker: '',
-  testUrlVerify: '',
-  testUrlProd: '',
-  testDetail: '',
-  frontendChanged: false,
-  backendChanged: false,
-  note: '',
-})
+const historyForm = reactive({ srNumber: '' })
 
 // git 커밋
 const systems = ref([])
@@ -280,28 +233,10 @@ const createHistory = async () => {
   try {
     const selectedCommits = commitList.value.filter(c => selectedCommitHashes.value.includes(c.hash))
     await createReleaseHistory(planId, {
-      service: historyForm.service,
-      workContent: historyForm.workContent || null,
-      requester: historyForm.requester || null,
-      worker: historyForm.worker || null,
-      testUrlVerify: historyForm.testUrlVerify || null,
-      testUrlProd: historyForm.testUrlProd || null,
-      testDetail: historyForm.testDetail || null,
-      frontendChanged: historyForm.frontendChanged,
-      backendChanged: historyForm.backendChanged,
-      note: historyForm.note || null,
+      srNumber: historyForm.srNumber,
       commits: selectedCommits,
     })
-    historyForm.service = ''
-    historyForm.workContent = ''
-    historyForm.requester = ''
-    historyForm.worker = ''
-    historyForm.testUrlVerify = ''
-    historyForm.testUrlProd = ''
-    historyForm.testDetail = ''
-    historyForm.frontendChanged = false
-    historyForm.backendChanged = false
-    historyForm.note = ''
+    historyForm.srNumber = ''
     selectedCommitHashes.value = []
     commitList.value = []
     commitsLoaded.value = false

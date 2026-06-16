@@ -27,17 +27,21 @@ public class ReleaseHistory {
     @JoinColumn(name = "release_plan_id", nullable = false)
     private ReleasePlan releasePlan;
 
-    /** 서비스 */
+    /** SR 번호 (레드마인 이슈 번호). 이 번호로 레드마인 연동해 아래 정보를 채운다. */
+    @Column(nullable = false)
+    private String srNumber;
+
+    /** 서비스 (레드마인 연동) */
     private String service;
 
-    /** 작업내용 */
+    /** 작업내용 (레드마인 연동) */
     @Column(columnDefinition = "TEXT")
     private String workContent;
 
-    /** 요청자 */
+    /** 요청자 (레드마인 연동) */
     private String requester;
 
-    /** 작업자 */
+    /** 작업자 (레드마인 연동) */
     private String worker;
 
     /** TEST URL - 검수 */

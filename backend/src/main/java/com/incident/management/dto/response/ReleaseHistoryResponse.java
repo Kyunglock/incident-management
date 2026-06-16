@@ -12,6 +12,7 @@ import java.util.List;
 public class ReleaseHistoryResponse {
     private Long id;
     private Long releasePlanId;
+    private String srNumber;
     private String service;
     private String workContent;
     private String requester;

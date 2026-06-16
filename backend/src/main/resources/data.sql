@@ -25,27 +25,27 @@ SELECT 3, '2026-06-15 배치/통계 반영', NOW() - INTERVAL '1 day',
        '{"title":"배치/통계 반영","purpose":"일배치 성능 개선 및 통계 지표 추가","scope":"배치 서버, 통계 API","changes":[{"item":"집계 쿼리 인덱스 추가","description":"created_at 복합 인덱스"}],"rollback_plan":"인덱스 드롭","risk":"낮음"}'::jsonb
 WHERE NOT EXISTS (SELECT 1 FROM release_plan WHERE id = 3);
 
--- 반영 이력 (엑셀 "시스템 반영 작업 요청" 1행 = 1 SR)
-INSERT INTO release_history (id, release_plan_id, service, work_content, requester, worker, test_url_verify, test_url_prod, test_detail, frontend_changed, backend_changed, note, final_confirmed, created_at)
-SELECT 1, 1, '회원', '회원 가입 약관 동의 추가', '장윤옥', '박영우',
+-- 반영 이력 (SR 1건 = 1행. service 등 상세는 레드마인 연동으로 채워지는 값)
+INSERT INTO release_history (id, release_plan_id, sr_number, service, work_content, requester, worker, test_url_verify, test_url_prod, test_detail, frontend_changed, backend_changed, note, final_confirmed, created_at)
+SELECT 1, 1, 'SR-2026-0001', '회원', '회원 가입 약관 동의 추가', '장윤옥', '박영우',
        'https://dev.example.net/signup', 'https://www.example.net/signup',
        '1. 약관 동의 체크박스 2건 노출 확인', true, true, NULL, true, NOW() - INTERVAL '6 day'
 WHERE NOT EXISTS (SELECT 1 FROM release_history WHERE id = 1);
 
-INSERT INTO release_history (id, release_plan_id, service, work_content, requester, worker, test_url_verify, test_url_prod, test_detail, frontend_changed, backend_changed, note, final_confirmed, created_at)
-SELECT 2, 1, '결제', '결제 타임아웃 조정 (5초 -> 10초)', '장윤옥', '박영우',
+INSERT INTO release_history (id, release_plan_id, sr_number, service, work_content, requester, worker, test_url_verify, test_url_prod, test_detail, frontend_changed, backend_changed, note, final_confirmed, created_at)
+SELECT 2, 1, 'SR-2026-0002', '결제', '결제 타임아웃 조정 (5초 -> 10초)', '장윤옥', '박영우',
        'https://dev.example.net/payment', 'https://www.example.net/payment',
        '1. PG 응답 지연 상황에서 결제 성공 처리 확인', false, true, '롤백 이력 있음', true, NOW() - INTERVAL '5 day'
 WHERE NOT EXISTS (SELECT 1 FROM release_history WHERE id = 2);
 
-INSERT INTO release_history (id, release_plan_id, service, work_content, requester, worker, test_url_verify, test_url_prod, test_detail, frontend_changed, backend_changed, note, final_confirmed, created_at)
-SELECT 3, 2, '인증', '세션 처리 NPE 수정 (null 세션 분기 추가)', '장윤옥', '박영우',
+INSERT INTO release_history (id, release_plan_id, sr_number, service, work_content, requester, worker, test_url_verify, test_url_prod, test_detail, frontend_changed, backend_changed, note, final_confirmed, created_at)
+SELECT 3, 2, 'SR-2026-0003', '인증', '세션 처리 NPE 수정 (null 세션 분기 추가)', '장윤옥', '박영우',
        'https://dev.example.net/login', 'https://www.example.net/login',
        '1. 만료 토큰으로 로그인 시 500 오류 없는지 확인', false, true, '긴급 핫픽스', true, NOW() - INTERVAL '4 day'
 WHERE NOT EXISTS (SELECT 1 FROM release_history WHERE id = 3);
 
-INSERT INTO release_history (id, release_plan_id, service, work_content, requester, worker, test_url_verify, test_url_prod, test_detail, frontend_changed, backend_changed, note, final_confirmed, created_at)
-SELECT 4, 3, '배치/통계', '집계 쿼리 인덱스 추가 (created_at 복합 인덱스)', '장윤옥', '박영우',
+INSERT INTO release_history (id, release_plan_id, sr_number, service, work_content, requester, worker, test_url_verify, test_url_prod, test_detail, frontend_changed, backend_changed, note, final_confirmed, created_at)
+SELECT 4, 3, 'SR-2026-0004', '배치/통계', '집계 쿼리 인덱스 추가 (created_at 복합 인덱스)', '장윤옥', '박영우',
        'https://dev.example.net/admin/stats', 'https://www.example.net/admin/stats',
        '1. 통계 화면 응답 속도 개선 확인', false, true, '배포 대기 중', false, NOW() - INTERVAL '1 day'
 WHERE NOT EXISTS (SELECT 1 FROM release_history WHERE id = 4);

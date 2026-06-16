@@ -23,6 +23,7 @@ public class ReleaseHistoryService {
 
     private final ReleaseHistoryRepository releaseHistoryRepository;
     private final ReleasePlanRepository releasePlanRepository;
+    private final RedmineService redmineService;
 
     @Transactional
     public ReleaseHistoryResponse create(Long releasePlanId, CreateReleaseHistoryRequest request) {
@@ -41,18 +42,13 @@ public class ReleaseHistoryService {
 
         ReleaseHistory history = ReleaseHistory.builder()
                 .releasePlan(plan)
-                .service(request.getService())
-                .workContent(request.getWorkContent())
-                .requester(request.getRequester())
-                .worker(request.getWorker())
-                .testUrlVerify(request.getTestUrlVerify())
-                .testUrlProd(request.getTestUrlProd())
-                .testDetail(request.getTestDetail())
-                .frontendChanged(request.getFrontendChanged())
-                .backendChanged(request.getBackendChanged())
-                .note(request.getNote())
+                .srNumber(request.getSrNumber())
                 .commits(commits)
                 .build();
+
+        // SR 번호로 레드마인 연동해 서비스/작업내용/요청자 등 상세 정보를 채운다.
+        redmineService.enrich(history);
+
         history = releaseHistoryRepository.save(history);
         return toResponse(history);
     }
@@ -80,6 +76,7 @@ public class ReleaseHistoryService {
         return ReleaseHistoryResponse.builder()
                 .id(history.getId())
                 .releasePlanId(history.getReleasePlan().getId())
+                .srNumber(history.getSrNumber())
                 .service(history.getService())
                 .workContent(history.getWorkContent())
                 .requester(history.getRequester())
