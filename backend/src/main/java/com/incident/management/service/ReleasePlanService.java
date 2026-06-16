@@ -7,9 +7,10 @@ import com.incident.management.common.LlmClient;
 import com.incident.management.common.PromptBuilder;
 import com.incident.management.dto.response.ReleasePlanResponse;
 import com.incident.management.entity.Document;
-import com.incident.management.entity.ReleaseHistory;
+import com.incident.management.entity.ReleasePlan;
+import com.incident.management.exception.ResourceNotFoundException;
 import com.incident.management.repository.DocumentRepository;
-import com.incident.management.repository.ReleaseHistoryRepository;
+import com.incident.management.repository.ReleasePlanRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,7 @@ public class ReleasePlanService {
     private final PromptBuilder promptBuilder;
     private final LlmClient llmClient;
     private final DocxRenderer docxRenderer;
-    private final ReleaseHistoryRepository releaseHistoryRepository;
+    private final ReleasePlanRepository releasePlanRepository;
     private final DocumentRepository documentRepository;
 
     @Transactional
@@ -56,44 +57,47 @@ public class ReleasePlanService {
 
             String docPath = docxRenderer.renderReleasePlan(llmOutput);
 
-            ReleaseHistory history = ReleaseHistory.builder()
+            ReleasePlan plan = ReleasePlan.builder()
                     .title(releaseTitle != null ? releaseTitle : "반영 계획서 " + LocalDateTime.now())
-                    .releaseAt(LocalDateTime.now())
                     .docPath(docPath)
                     .excelPath(excelFile.getOriginalFilename())
                     .rawInput("{\"excel\": \"" + excelFile.getOriginalFilename() + "\"}")
                     .llmOutput(llmOutput)
                     .build();
-            history = releaseHistoryRepository.save(history);
+            plan = releasePlanRepository.save(plan);
 
             Document doc = Document.builder()
                     .type("RELEASE_PLAN")
                     .filePath(docPath)
-                    .refId(history.getId())
+                    .refId(plan.getId())
                     .build();
             documentRepository.save(doc);
 
-            return ReleasePlanResponse.builder()
-                    .id(history.getId())
-                    .title(history.getTitle())
-                    .docPath(docPath)
-                    .llmOutput(llmOutput)
-                    .createdAt(history.getCreatedAt())
-                    .build();
+            return toResponse(plan);
         } catch (Exception e) {
             log.error("반영 계획서 생성 실패", e);
             throw new RuntimeException("반영 계획서 생성 중 오류: " + e.getMessage());
         }
     }
 
-    public List<ReleasePlanResponse> getHistory() {
-        return releaseHistoryRepository.findAllByOrderByCreatedAtDesc().stream()
-                .map(h -> ReleasePlanResponse.builder()
-                        .id(h.getId())
-                        .title(h.getTitle())
-                        .docPath(h.getDocPath())
-                        .createdAt(h.getCreatedAt())
-                        .build())
+    public List<ReleasePlanResponse> getAll() {
+        return releasePlanRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    public ReleasePlanResponse getById(Long id) {
+        return toResponse(releasePlanRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("반영 계획서를 찾을 수 없습니다: " + id)));
+    }
+
+    private ReleasePlanResponse toResponse(ReleasePlan plan) {
+        return ReleasePlanResponse.builder()
+                .id(plan.getId())
+                .title(plan.getTitle())
+                .docPath(plan.getDocPath())
+                .llmOutput(plan.getLlmOutput())
+                .createdAt(plan.getCreatedAt())
+                .build();
     }
 }

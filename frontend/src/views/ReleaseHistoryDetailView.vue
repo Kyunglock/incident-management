@@ -1,0 +1,97 @@
+<template>
+  <div class="max-w-3xl mx-auto">
+    <router-link v-if="history" :to="`/release-plans/${history.releasePlanId}`" class="text-sm text-blue-600 hover:underline">
+      ← 반영 계획서로 돌아가기
+    </router-link>
+
+    <div v-if="history" class="mt-4">
+      <div class="card mb-6">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-gray-800">반영 이력 #{{ history.id }}</h2>
+          <span class="text-sm px-2 py-0.5 rounded" :class="statusClass(history.status)">{{ history.status }}</span>
+        </div>
+        <p class="text-sm text-gray-600 mt-2">{{ history.memo || '메모 없음' }}</p>
+        <p class="text-xs text-gray-400 mt-1">배포일: {{ history.deployedAt }}</p>
+      </div>
+
+      <!-- 장애이력 등록 -->
+      <section class="card mb-6">
+        <h3 class="section-title">3단계 · 장애 등록</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="label">장애 증상 <span class="text-red-500">*</span></label>
+            <textarea v-model="incidentForm.symptom" rows="3" class="input" placeholder="장애 증상을 입력하세요"></textarea>
+          </div>
+          <button @click="createIncidentEntry" :disabled="!incidentForm.symptom || loading.incident" class="btn-primary w-full">
+            <span v-if="loading.incident">등록 중...</span>
+            <span v-else>🚨 장애 등록</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3 class="section-title">장애 이력 목록</h3>
+        <div v-if="incidents.length === 0" class="text-gray-400 text-sm">장애 이력이 없습니다.</div>
+        <div v-else class="space-y-2">
+          <router-link v-for="i in incidents" :key="i.id" :to="`/incidents/${i.id}`"
+            class="flex items-center justify-between py-2 border-b last:border-b-0 hover:bg-gray-50 px-2 -mx-2 rounded">
+            <div>
+              <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-mono mr-2">#{{ i.id }}</span>
+              <span class="text-sm text-gray-700">{{ i.symptom }}</span>
+            </div>
+            <span class="text-xs text-gray-400">{{ i.occurredAt }}</span>
+          </router-link>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="error" class="mt-4 bg-red-50 border border-red-200 text-red-700 rounded p-3 text-sm">{{ error }}</div>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { getReleaseHistory, createIncident, getIncidents } from '../services/api.js'
+
+const route = useRoute()
+const historyId = route.params.id
+
+const history = ref(null)
+const incidents = ref([])
+const error = ref('')
+const loading = reactive({ incident: false })
+const incidentForm = reactive({ symptom: '' })
+
+const statusClass = (status) => ({
+  PENDING: 'bg-gray-100 text-gray-600',
+  DEPLOYED: 'bg-green-100 text-green-700',
+  ROLLED_BACK: 'bg-red-100 text-red-700',
+}[status] || 'bg-gray-100 text-gray-600')
+
+const load = async () => {
+  const [historyRes, incidentsRes] = await Promise.all([
+    getReleaseHistory(historyId),
+    getIncidents(historyId),
+  ])
+  history.value = historyRes.data
+  incidents.value = incidentsRes.data
+}
+
+onMounted(load)
+
+const createIncidentEntry = async () => {
+  loading.incident = true
+  error.value = ''
+  try {
+    await createIncident(historyId, { symptom: incidentForm.symptom })
+    incidentForm.symptom = ''
+    const res = await getIncidents(historyId)
+    incidents.value = res.data
+  } catch (e) {
+    error.value = '장애 등록 실패'
+  } finally {
+    loading.incident = false
+  }
+}
+</script>

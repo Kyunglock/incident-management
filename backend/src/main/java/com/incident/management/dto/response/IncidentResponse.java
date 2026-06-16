@@ -7,10 +7,10 @@ import java.time.LocalDateTime;
 
 @Data
 @Builder
-public class IncidentAnalysisResponse {
+public class IncidentResponse {
     private Long id;
-    private Long incidentId;
-    private String cause;
-    private String docPath;
+    private Long releaseHistoryId;
+    private LocalDateTime occurredAt;
+    private String symptom;
     private LocalDateTime createdAt;
 }

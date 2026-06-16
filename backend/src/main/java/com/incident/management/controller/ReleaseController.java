@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/release")
+@RequestMapping("/api/release-plans")
 @RequiredArgsConstructor
 public class ReleaseController {
 
@@ -21,7 +21,7 @@ public class ReleaseController {
     private final SideEffectService sideEffectService;
     private final VulnCheckService vulnCheckService;
 
-    @PostMapping("/plan")
+    @PostMapping
     public ResponseEntity<ReleasePlanResponse> generatePlan(
             @RequestParam MultipartFile excelFile,
             @RequestParam(defaultValue = "false") boolean useGit,
@@ -34,9 +34,14 @@ public class ReleaseController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/history")
-    public ResponseEntity<List<ReleasePlanResponse>> getHistory() {
-        return ResponseEntity.ok(releasePlanService.getHistory());
+    @GetMapping
+    public ResponseEntity<List<ReleasePlanResponse>> getAll() {
+        return ResponseEntity.ok(releasePlanService.getAll());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ReleasePlanResponse> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(releasePlanService.getById(id));
     }
 
     @PostMapping("/{id}/side-effect")

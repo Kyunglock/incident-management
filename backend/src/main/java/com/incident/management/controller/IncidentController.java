@@ -1,30 +1,35 @@
 package com.incident.management.controller;
 
-import com.incident.management.dto.response.IncidentAnalysisResponse;
+import com.incident.management.dto.response.IncidentResponse;
 import com.incident.management.service.IncidentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/incident")
 @RequiredArgsConstructor
 public class IncidentController {
 
     private final IncidentService incidentService;
 
-    @PostMapping("/analyze")
-    public ResponseEntity<IncidentAnalysisResponse> analyze(
+    @PostMapping("/api/release-histories/{historyId}/incidents")
+    public ResponseEntity<IncidentResponse> create(
+            @PathVariable Long historyId,
             @RequestParam String symptom,
-            @RequestParam(required = false) String errorLogs,
-            @RequestParam(required = false) Long releaseHistoryId) {
-        return ResponseEntity.ok(incidentService.analyze(symptom, errorLogs, releaseHistoryId));
+            @RequestParam(required = false) LocalDateTime occurredAt) {
+        return ResponseEntity.ok(incidentService.create(historyId, symptom, occurredAt));
     }
 
-    @GetMapping
-    public ResponseEntity<List<IncidentAnalysisResponse>> getAll() {
-        return ResponseEntity.ok(incidentService.getAll());
+    @GetMapping("/api/release-histories/{historyId}/incidents")
+    public ResponseEntity<List<IncidentResponse>> getByHistory(@PathVariable Long historyId) {
+        return ResponseEntity.ok(incidentService.getByHistory(historyId));
+    }
+
+    @GetMapping("/api/incidents/{id}")
+    public ResponseEntity<IncidentResponse> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(incidentService.getById(id));
     }
 }
