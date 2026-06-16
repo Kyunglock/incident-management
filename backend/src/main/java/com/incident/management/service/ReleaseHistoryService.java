@@ -75,6 +75,16 @@ public class ReleaseHistoryService {
         return toResponse(history);
     }
 
+    @Transactional
+    public ReleaseHistoryResponse updateSrNumber(Long id, String srNumber) {
+        ReleaseHistory history = releaseHistoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("반영 이력을 찾을 수 없습니다: " + id));
+        history.setSrNumber(srNumber);
+        // SR 번호가 바뀌면 레드마인 연동으로 상세 정보를 다시 채운다.
+        redmineService.enrich(history);
+        return toResponse(history);
+    }
+
     private ReleaseHistoryResponse toResponse(ReleaseHistory history) {
         return ReleaseHistoryResponse.builder()
                 .id(history.getId())
