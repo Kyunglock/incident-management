@@ -6,8 +6,11 @@
       <div class="card mb-6">
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="text-xl font-bold text-gray-800">{{ history.service }} · 반영 이력 #{{ history.id }}</h2>
-            <p class="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{{ history.workContent || '작업 내용 없음' }}</p>
+            <div class="flex items-center gap-2">
+              <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono">{{ history.srNumber }}</span>
+              <h2 class="text-xl font-bold text-gray-800">{{ history.service || '레드마인 연동 대기' }}</h2>
+            </div>
+            <p class="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{{ history.workContent || '작업 내용 없음 (SR 번호로 레드마인 연동 예정)' }}</p>
           </div>
           <button @click="toggleFinalConfirm" :disabled="loading.confirm"
             class="text-sm px-3 py-1 rounded font-medium"
@@ -119,7 +122,7 @@ const incidents = ref([])
 const breadcrumbItems = computed(() => [
   { label: '반영 계획서 목록', to: '/' },
   { label: plan.value ? plan.value.title : (history.value ? `#${history.value.releasePlanId}` : '...'), to: history.value ? `/release-plans/${history.value.releasePlanId}` : null },
-  { label: `반영 이력 #${historyId}`, to: null },
+  { label: history.value?.srNumber ? `반영 이력 (${history.value.srNumber})` : `반영 이력 #${historyId}`, to: null },
 ])
 const error = ref('')
 const loading = reactive({ incident: false, confirm: false })
