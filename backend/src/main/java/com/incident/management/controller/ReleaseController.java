@@ -23,14 +23,14 @@ public class ReleaseController {
 
     @PostMapping("/plan")
     public ResponseEntity<ReleasePlanResponse> generatePlan(
-            @RequestParam(required = false) MultipartFile excelFile,
-            @RequestParam String srContent,
+            @RequestParam MultipartFile excelFile,
+            @RequestParam(defaultValue = "false") boolean useGit,
             @RequestParam(required = false) String repoPath,
             @RequestParam(required = false) String commitFrom,
             @RequestParam(required = false) String commitTo,
             @RequestParam(required = false) String releaseTitle) {
         ReleasePlanResponse response = releasePlanService.generatePlan(
-                excelFile, srContent, repoPath, commitFrom, commitTo, releaseTitle);
+                excelFile, useGit, repoPath, commitFrom, commitTo, releaseTitle);
         return ResponseEntity.ok(response);
     }
 

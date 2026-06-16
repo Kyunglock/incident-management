@@ -5,13 +5,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class PromptBuilder {
 
-    public String buildReleasePlanPrompt(String srContent, String commitMessages, String excelSummary) {
+    public String buildReleasePlanPrompt(String commitMessages, String excelSummary) {
         return String.format("""
                 당신은 IT 운영 담당자를 돕는 AI 어시스턴트입니다.
-                아래 정보를 바탕으로 반영 계획서 초안을 JSON 형식으로 작성해 주세요.
-
-                [SR 내용]
-                %s
+                아래 정보를 바탕으로 반영 계획서 뼈대(초안)를 JSON 형식으로 작성해 주세요.
+                정보가 부족한 항목은 빈 문자열이나 빈 배열로 두고, 있는 정보만으로 구조를 채워주세요.
 
                 [Git Commit 메시지]
                 %s
@@ -28,7 +26,7 @@ public class PromptBuilder {
                   "rollback_plan": "롤백 방안",
                   "risk": "위험도 및 영향"
                 }
-                """, srContent, commitMessages, excelSummary);
+                """, commitMessages, excelSummary);
     }
 
     public String buildSideEffectPrompt(String gitDiff) {

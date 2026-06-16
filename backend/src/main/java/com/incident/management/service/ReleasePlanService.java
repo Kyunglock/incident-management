@@ -36,21 +36,22 @@ public class ReleasePlanService {
     @Transactional
     public ReleasePlanResponse generatePlan(
             MultipartFile excelFile,
-            String srContent,
+            boolean useGit,
             String repoPath,
             String commitFrom,
             String commitTo,
             String releaseTitle) {
         try {
-            String excelSummary = (excelFile != null && !excelFile.isEmpty())
-                    ? excelParser.parseWorkItems(excelFile)
-                    : "Excel 파일 없음";
+            if (excelFile == null || excelFile.isEmpty()) {
+                throw new IllegalArgumentException("공유 Excel 파일은 필수입니다.");
+            }
+            String excelSummary = excelParser.parseWorkItems(excelFile);
 
-            String commitMessages = (repoPath != null && !repoPath.isBlank())
+            String commitMessages = (useGit && repoPath != null && !repoPath.isBlank())
                     ? gitAdapter.getCommitMessages(repoPath, 10)
                     : "git 정보 없음";
 
-            String prompt = promptBuilder.buildReleasePlanPrompt(srContent, commitMessages, excelSummary);
+            String prompt = promptBuilder.buildReleasePlanPrompt(commitMessages, excelSummary);
             String llmOutput = llmClient.chat(prompt);
 
             String docPath = docxRenderer.renderReleasePlan(llmOutput);
@@ -59,7 +60,8 @@ public class ReleasePlanService {
                     .title(releaseTitle != null ? releaseTitle : "반영 계획서 " + LocalDateTime.now())
                     .releaseAt(LocalDateTime.now())
                     .docPath(docPath)
-                    .rawInput("{\"sr\": \"" + srContent.replace("\"", "'") + "\"}")
+                    .excelPath(excelFile.getOriginalFilename())
+                    .rawInput("{\"excel\": \"" + excelFile.getOriginalFilename() + "\"}")
                     .llmOutput(llmOutput)
                     .build();
             history = releaseHistoryRepository.save(history);
