@@ -16,3 +16,6 @@ frontend/dist/
 
 # Claude worktrees
 .claude/worktrees/
+
+# 로컬 전용 설정 (충돌 방지: 템플릿은 .example 로 관리)
+backend/src/main/resources/application-local.yml
