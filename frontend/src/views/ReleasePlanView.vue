@@ -8,8 +8,8 @@
 
       <div class="space-y-4">
         <div>
-          <label class="label">SR 내용 <span class="text-red-500">*</span></label>
-          <textarea v-model="form.srContent" rows="4" class="input" placeholder="SR 또는 요청 내용을 입력하세요"></textarea>
+          <label class="label">공유 Excel 파일 <span class="text-red-500">*</span></label>
+          <input type="file" accept=".xlsx,.xls" @change="onFileChange" class="input py-1" />
         </div>
 
         <div>
@@ -17,38 +17,40 @@
           <input v-model="form.releaseTitle" type="text" class="input" placeholder="예) 2026-06-16 정기 반영" />
         </div>
 
-        <div>
-          <label class="label">공유 Excel 파일 (선택)</label>
-          <input type="file" accept=".xlsx,.xls" @change="onFileChange" class="input py-1" />
+        <div class="border-t pt-4">
+          <label class="flex items-center gap-2 mb-3">
+            <input type="checkbox" v-model="form.useGit" class="w-4 h-4" />
+            <span class="text-sm font-medium text-gray-700">git 정보 사용 (선택)</span>
+          </label>
+
+          <div v-if="form.useGit" class="grid grid-cols-3 gap-3">
+            <div class="col-span-3">
+              <label class="label">git 저장소 경로</label>
+              <input v-model="form.repoPath" type="text" class="input" placeholder="/path/to/repo" />
+            </div>
+            <div>
+              <label class="label">From commit</label>
+              <input v-model="form.commitFrom" type="text" class="input font-mono text-sm" placeholder="HEAD~1" />
+            </div>
+            <div>
+              <label class="label">To commit</label>
+              <input v-model="form.commitTo" type="text" class="input font-mono text-sm" placeholder="HEAD" />
+            </div>
+            <div class="flex items-end">
+              <button @click="loadGitInfo" :disabled="!form.repoPath" class="btn-secondary w-full">
+                commit 불러오기
+              </button>
+            </div>
+          </div>
+
+          <div v-if="gitLoaded" class="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800 mt-3">
+            ✓ git 정보 로드됨 — 2단계 버튼이 활성화됩니다.
+          </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-3">
-          <div class="col-span-3">
-            <label class="label">git 저장소 경로 (선택)</label>
-            <input v-model="form.repoPath" type="text" class="input" placeholder="/path/to/repo" />
-          </div>
-          <div>
-            <label class="label">From commit</label>
-            <input v-model="form.commitFrom" type="text" class="input font-mono text-sm" placeholder="HEAD~1" />
-          </div>
-          <div>
-            <label class="label">To commit</label>
-            <input v-model="form.commitTo" type="text" class="input font-mono text-sm" placeholder="HEAD" />
-          </div>
-          <div class="flex items-end">
-            <button @click="loadGitInfo" :disabled="!form.repoPath" class="btn-secondary w-full">
-              commit 불러오기
-            </button>
-          </div>
-        </div>
-
-        <div v-if="gitLoaded" class="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800">
-          ✓ git 정보 로드됨 — 2단계 버튼이 활성화됩니다.
-        </div>
-
-        <button @click="generatePlan" :disabled="!form.srContent || loading.plan" class="btn-primary w-full">
+        <button @click="generatePlan" :disabled="!excelFile || loading.plan" class="btn-primary w-full">
           <span v-if="loading.plan">생성 중...</span>
-          <span v-else>📄 반영 계획서 생성</span>
+          <span v-else>📄 반영 계획서 뼈대 생성</span>
         </button>
       </div>
     </section>
@@ -67,7 +69,7 @@
       </div>
 
       <div class="border-t pt-4">
-        <h4 class="text-sm font-semibold text-gray-700 mb-3">2단계 · diff 기반 분석 <span class="text-xs text-gray-400">(git 경로 입력 시 활성화)</span></h4>
+        <h4 class="text-sm font-semibold text-gray-700 mb-3">2단계 · diff 기반 분석 <span class="text-xs text-gray-400">(git 정보 로드 시 활성화)</span></h4>
         <div class="flex gap-3">
           <button @click="runSideEffect" :disabled="!gitLoaded || loading.sideEffect" class="btn-secondary flex-1">
             <span v-if="loading.sideEffect">분석 중...</span>
@@ -96,8 +98,8 @@ import { ref, reactive } from 'vue'
 import { generateReleasePlan, analyzeSideEffect, analyzeVuln, downloadDocument } from '../services/api.js'
 
 const form = reactive({
-  srContent: '',
   releaseTitle: '',
+  useGit: false,
   repoPath: '',
   commitFrom: '',
   commitTo: '',
@@ -117,16 +119,18 @@ const loadGitInfo = () => {
 }
 
 const generatePlan = async () => {
-  if (!form.srContent) return
+  if (!excelFile.value) return
   loading.plan = true
   error.value = ''
   try {
     const fd = new FormData()
-    if (excelFile.value) fd.append('excelFile', excelFile.value)
-    fd.append('srContent', form.srContent)
-    if (form.repoPath) fd.append('repoPath', form.repoPath)
-    if (form.commitFrom) fd.append('commitFrom', form.commitFrom)
-    if (form.commitTo) fd.append('commitTo', form.commitTo)
+    fd.append('excelFile', excelFile.value)
+    fd.append('useGit', form.useGit && gitLoaded.value)
+    if (form.useGit) {
+      if (form.repoPath) fd.append('repoPath', form.repoPath)
+      if (form.commitFrom) fd.append('commitFrom', form.commitFrom)
+      if (form.commitTo) fd.append('commitTo', form.commitTo)
+    }
     if (form.releaseTitle) fd.append('releaseTitle', form.releaseTitle)
     const res = await generateReleasePlan(fd)
     result.value = res.data
