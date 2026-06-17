@@ -30,6 +30,8 @@ public class ReleasePlanImportResponse {
     public static class Created {
         private Long planId;
         private String title;
+        /** LLM 한 줄 요약 (요약 미사용/실패 시 null) */
+        private String summary;
         /** 생성된 반영 이력(SR) 수 */
         private int historyCount;
     }

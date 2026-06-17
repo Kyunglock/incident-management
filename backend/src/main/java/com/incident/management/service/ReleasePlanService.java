@@ -101,9 +101,10 @@ public class ReleasePlanService {
      * - 각 SR 행 → 반영 이력 1건
      * - 같은 날짜(제목)가 이미 DB에 있으면 해당 시트는 무시한다.
      * - 날짜 형식이 잘못되었거나 SR 행이 없는 시트도 건너뛴다.
+     * - summarize=true 이면 시트별 작업내용을 LLM으로 한 줄 요약해 summary 에 저장한다.
      */
     @Transactional
-    public ReleasePlanImportResponse importFromExcel(MultipartFile excelFile) {
+    public ReleasePlanImportResponse importFromExcel(MultipartFile excelFile, boolean summarize) {
         if (excelFile == null || excelFile.isEmpty()) {
             throw new IllegalArgumentException("공유 Excel 파일은 필수입니다.");
         }
@@ -120,6 +121,8 @@ public class ReleasePlanService {
         List<String> skippedExisting = new ArrayList<>();
         List<String> skippedEmptyOrInvalid = new ArrayList<>();
         String excelName = excelFile.getOriginalFilename();
+        // LLM 호출이 연속 실패하면(예: LLM 미구동) 이후 시트는 요약을 건너뛴다.
+        boolean llmAvailable = summarize;
 
         for (ParsedSheet sheet : sheets) {
             // 날짜 형식이 잘못되었거나 SR 행이 없으면 건너뛴다.
@@ -136,8 +139,20 @@ public class ReleasePlanService {
                 continue;
             }
 
+            String summary = null;
+            if (llmAvailable) {
+                try {
+                    summary = summarizeSheet(sheet);
+                } catch (Exception e) {
+                    // 한 번 실패하면 나머지 시트도 실패할 가능성이 높으므로 이후 요약은 생략한다.
+                    llmAvailable = false;
+                    log.warn("LLM 요약 실패 — 이후 시트는 요약 없이 진행합니다: {}", e.getMessage());
+                }
+            }
+
             ReleasePlan plan = ReleasePlan.builder()
                     .title(title)
+                    .summary(summary)
                     .excelPath(excelName)
                     .rawInput(String.format("{\"excel\": \"%s\", \"sheet\": \"%s\"}",
                             excelName, sheet.sheetName()))
@@ -165,6 +180,7 @@ public class ReleasePlanService {
             created.add(ReleasePlanImportResponse.Created.builder()
                     .planId(plan.getId())
                     .title(title)
+                    .summary(summary)
                     .historyCount(sheet.rows().size())
                     .build());
         }
@@ -178,6 +194,30 @@ public class ReleasePlanService {
                 .skippedExisting(skippedExisting)
                 .skippedEmptyOrInvalid(skippedEmptyOrInvalid)
                 .build();
+    }
+
+    /** 시트의 SR 작업내용을 모아 LLM으로 한 줄 요약한다. */
+    private String summarizeSheet(ParsedSheet sheet) {
+        StringBuilder items = new StringBuilder();
+        int no = 1;
+        for (ParsedSrRow row : sheet.rows()) {
+            String content = row.workContent() != null ? row.workContent() : row.testDetail();
+            if (content == null || content.isBlank()) continue;
+            String service = row.service() != null ? row.service() : "";
+            items.append(no++).append(". ");
+            if (!service.isBlank()) items.append("[").append(service).append("] ");
+            // 작업내용이 길 수 있으니 줄바꿈은 공백으로 정리
+            items.append(content.replaceAll("\\s+", " ").trim()).append("\n");
+        }
+        if (items.length() == 0) return null;
+
+        String prompt = promptBuilder.buildWorkSummaryPrompt(items.toString());
+        String summary = llmClient.chat(prompt);
+        if (summary == null) return null;
+        summary = summary.trim();
+        if (summary.isEmpty()) return null;
+        // 컬럼 길이(500) 보호
+        return summary.length() > 500 ? summary.substring(0, 500) : summary;
     }
 
     public PageResponse<ReleasePlanResponse> getAll(String keyword, int page, int size) {
@@ -196,6 +236,7 @@ public class ReleasePlanService {
         return ReleasePlanResponse.builder()
                 .id(plan.getId())
                 .title(plan.getTitle())
+                .summary(plan.getSummary())
                 .docPath(plan.getDocPath())
                 .llmOutput(plan.getLlmOutput())
                 .createdAt(plan.getCreatedAt())

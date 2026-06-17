@@ -11,7 +11,8 @@ spring:
 
 ai:
   llm:
-    base-url: http://100.64.0.1:11434
+    # chat 엔드포인트 전체 URL (경로 포함)
+    url: https://kwaklabs.com/api/v1/kwakai/chat
     model: qwen3-coder:latest
 
 # git 저장소 경로 (커밋 매핑용). 시스템별로 경로를 분기한다.

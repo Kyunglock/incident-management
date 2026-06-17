@@ -19,7 +19,8 @@ public class Incident {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "release_history_id", nullable = false)
+    @JoinColumn(name = "release_history_id", nullable = false,
+            foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     private ReleaseHistory releaseHistory;
 
     private LocalDateTime occurredAt;

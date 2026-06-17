@@ -22,7 +22,8 @@ public class ReleaseHistory {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "release_plan_id", nullable = false)
+    @JoinColumn(name = "release_plan_id", nullable = false,
+            foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     private ReleasePlan releasePlan;
 
     /** SR 번호 (레드마인 이슈 번호). 이 번호로 레드마인 연동해 아래 정보를 채운다. */

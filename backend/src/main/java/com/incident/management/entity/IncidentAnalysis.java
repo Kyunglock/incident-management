@@ -19,7 +19,8 @@ public class IncidentAnalysis {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "incident_id", nullable = false)
+    @JoinColumn(name = "incident_id", nullable = false,
+            foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     private Incident incident;
 
     @Column(columnDefinition = "TEXT")

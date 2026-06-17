@@ -23,11 +23,18 @@
       </p>
       <div class="flex items-center gap-3">
         <input type="file" accept=".xlsx,.xls" @change="onImportFileChange" class="input py-1" />
+        <label class="flex items-center gap-2 text-sm text-gray-700 whitespace-nowrap">
+          <input type="checkbox" v-model="importSummarize" class="w-4 h-4" />
+          작업내용 LLM 요약
+        </label>
         <button @click="runImport" :disabled="!importFile || importing" class="btn-primary">
           <span v-if="importing">등록 중...</span>
           <span v-else>일괄 등록</span>
         </button>
       </div>
+      <p v-if="importSummarize" class="text-xs text-gray-400 mt-1">
+        시트마다 LLM 요약을 호출하므로 시트 수에 따라 시간이 걸릴 수 있습니다.
+      </p>
       <div v-if="importError" class="text-red-600 text-sm mt-2">{{ importError }}</div>
 
       <!-- 결과 요약 -->
@@ -113,12 +120,13 @@
         <!-- 계획서 헤더 (클릭 시 펼침) -->
         <button @click="toggle(p.id)"
           class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 text-left">
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 min-w-0">
             <span class="text-gray-400 transition-transform" :class="{ 'rotate-90': expanded[p.id] }">▶</span>
             <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono">#{{ p.id }}</span>
-            <span class="font-semibold text-gray-800">{{ p.title }}</span>
+            <span class="font-semibold text-gray-800 whitespace-nowrap">{{ p.title }}</span>
+            <span v-if="p.summary" class="text-sm text-gray-500 truncate">— {{ p.summary }}</span>
           </div>
-          <span class="text-xs text-gray-400">{{ p.createdAt }}</span>
+          <span class="text-xs text-gray-400 whitespace-nowrap pl-3">{{ p.createdAt }}</span>
         </button>
 
         <!-- 펼친 영역: 반영 이력 목록 -->
@@ -205,6 +213,7 @@ const showCreate = ref(false)
 // 엑셀 일괄 등록 상태
 const showImport = ref(false)
 const importFile = ref(null)
+const importSummarize = ref(true)
 const importing = ref(false)
 const importError = ref('')
 const importResult = ref(null)
@@ -244,6 +253,7 @@ const runImport = async () => {
   try {
     const fd = new FormData()
     fd.append('excelFile', importFile.value)
+    fd.append('summarize', importSummarize.value)
     const res = await importReleasePlans(fd)
     importResult.value = res.data
     page.value = 0
