@@ -4,10 +4,49 @@
 
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-2xl font-bold text-gray-800">반영 계획서</h2>
-      <button @click="showCreate = !showCreate" class="btn-primary text-sm">
-        {{ showCreate ? '닫기' : '+ 새 반영 계획서' }}
-      </button>
+      <div class="flex gap-2">
+        <button @click="showImport = !showImport" class="btn-secondary text-sm">
+          {{ showImport ? '닫기' : '⬆ 엑셀 일괄 등록' }}
+        </button>
+        <button @click="showCreate = !showCreate" class="btn-primary text-sm">
+          {{ showCreate ? '닫기' : '+ 새 반영 계획서' }}
+        </button>
+      </div>
     </div>
+
+    <!-- 다중 시트 엑셀 일괄 등록 (접이식) -->
+    <section v-if="showImport" class="card mb-6">
+      <h3 class="section-title">엑셀 일괄 등록 (시트=날짜)</h3>
+      <p class="text-xs text-gray-500 mb-3">
+        시트별로 반영 계획서(제목 <code>2026-MM-DD</code>)와 SR 단위 반영 이력을 생성합니다.
+        이미 같은 날짜가 등록되어 있으면 해당 시트는 무시합니다.
+      </p>
+      <div class="flex items-center gap-3">
+        <input type="file" accept=".xlsx,.xls" @change="onImportFileChange" class="input py-1" />
+        <button @click="runImport" :disabled="!importFile || importing" class="btn-primary">
+          <span v-if="importing">등록 중...</span>
+          <span v-else>일괄 등록</span>
+        </button>
+      </div>
+      <div v-if="importError" class="text-red-600 text-sm mt-2">{{ importError }}</div>
+
+      <!-- 결과 요약 -->
+      <div v-if="importResult" class="mt-4 text-sm space-y-2">
+        <div class="text-gray-700">
+          전체 시트 {{ importResult.totalSheets }}개 ·
+          생성 <span class="text-green-600 font-semibold">{{ importResult.created.length }}</span>건 ·
+          기존 스킵 <span class="text-gray-500 font-semibold">{{ importResult.skippedExisting.length }}</span>건 ·
+          무효/빈 시트 <span class="text-gray-400 font-semibold">{{ importResult.skippedEmptyOrInvalid.length }}</span>개
+        </div>
+        <div v-if="importResult.created.length" class="text-gray-600">
+          <span class="font-medium">생성됨:</span>
+          {{ importResult.created.map(c => `${c.title}(SR ${c.historyCount})`).join(', ') }}
+        </div>
+        <div v-if="importResult.skippedExisting.length" class="text-gray-500">
+          <span class="font-medium">기존 스킵:</span> {{ importResult.skippedExisting.join(', ') }}
+        </div>
+      </div>
+    </section>
 
     <!-- 생성 폼 (접이식) -->
     <section v-if="showCreate" class="card mb-6">
@@ -152,7 +191,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  generateReleasePlan, getReleasePlans, getReleaseHistories,
+  generateReleasePlan, importReleasePlans, getReleasePlans, getReleaseHistories,
   updateSrNumber, downloadDocument,
 } from '../services/api.js'
 import Breadcrumb from '../components/Breadcrumb.vue'
@@ -162,6 +201,13 @@ const router = useRouter()
 const form = reactive({ releaseTitle: '', useGit: false, repoPath: '', commitFrom: '', commitTo: '' })
 const excelFile = ref(null)
 const showCreate = ref(false)
+
+// 엑셀 일괄 등록 상태
+const showImport = ref(false)
+const importFile = ref(null)
+const importing = ref(false)
+const importError = ref('')
+const importResult = ref(null)
 const plans = ref([])
 const loading = ref(false)
 const loadingList = ref(true)
@@ -187,6 +233,27 @@ const pageNumbers = computed(() => {
 })
 
 const onFileChange = (e) => { excelFile.value = e.target.files[0] }
+
+const onImportFileChange = (e) => { importFile.value = e.target.files[0] }
+
+const runImport = async () => {
+  if (!importFile.value) return
+  importing.value = true
+  importError.value = ''
+  importResult.value = null
+  try {
+    const fd = new FormData()
+    fd.append('excelFile', importFile.value)
+    const res = await importReleasePlans(fd)
+    importResult.value = res.data
+    page.value = 0
+    await loadPlans()
+  } catch (e) {
+    importError.value = e.response?.data?.message || '일괄 등록 실패'
+  } finally {
+    importing.value = false
+  }
+}
 
 const loadPlans = async () => {
   loadingList.value = true

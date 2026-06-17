@@ -1,6 +1,7 @@
 package com.incident.management.controller;
 
 import com.incident.management.dto.response.PageResponse;
+import com.incident.management.dto.response.ReleasePlanImportResponse;
 import com.incident.management.dto.response.ReleasePlanResponse;
 import com.incident.management.service.ReleasePlanService;
 import com.incident.management.service.SideEffectService;
@@ -32,6 +33,16 @@ public class ReleaseController {
         ReleasePlanResponse response = releasePlanService.generatePlan(
                 excelFile, useGit, repoPath, commitFrom, commitTo, releaseTitle);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 다중 시트 엑셀 업로드 → 시트(날짜)별 반영 계획서 + SR 단위 반영 이력 일괄 생성.
+     * 이미 같은 날짜(2026-MM-DD)가 존재하면 해당 시트는 무시한다.
+     */
+    @PostMapping("/import")
+    public ResponseEntity<ReleasePlanImportResponse> importPlans(
+            @RequestParam MultipartFile excelFile) {
+        return ResponseEntity.ok(releasePlanService.importFromExcel(excelFile));
     }
 
     @GetMapping
