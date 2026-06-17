@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface ReleaseHistoryRepository extends JpaRepository<ReleaseHistory, Long> {
     List<ReleaseHistory> findByReleasePlanIdOrderByCreatedAtDesc(Long releasePlanId);
+
+    void deleteByReleasePlanId(Long releasePlanId);
 }

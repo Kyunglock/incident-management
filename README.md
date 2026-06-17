@@ -168,6 +168,7 @@ GET    /api/release-plans?keyword=&page=0&size=10
 POST   /api/release-plans                       # Excel 업로드로 생성
 POST   /api/release-plans/import                # 다중 시트 Excel 일괄 등록(시트=날짜, 중복 날짜 무시)
 GET    /api/release-plans/{id}
+DELETE /api/release-plans/{id}                  # 계획서 + 하위(반영 이력/장애/장애 분석) 삭제
 POST   /api/release-plans/{id}/side-effect
 POST   /api/release-plans/{id}/vuln-check
 

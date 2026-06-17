@@ -11,10 +11,13 @@ import com.incident.management.dto.response.PageResponse;
 import com.incident.management.dto.response.ReleasePlanImportResponse;
 import com.incident.management.dto.response.ReleasePlanResponse;
 import com.incident.management.entity.Document;
+import com.incident.management.entity.Incident;
 import com.incident.management.entity.ReleaseHistory;
 import com.incident.management.entity.ReleasePlan;
 import com.incident.management.exception.ResourceNotFoundException;
 import com.incident.management.repository.DocumentRepository;
+import com.incident.management.repository.IncidentAnalysisRepository;
+import com.incident.management.repository.IncidentRepository;
 import com.incident.management.repository.ReleaseHistoryRepository;
 import com.incident.management.repository.ReleasePlanRepository;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +50,8 @@ public class ReleasePlanService {
     private final DocxRenderer docxRenderer;
     private final ReleasePlanRepository releasePlanRepository;
     private final ReleaseHistoryRepository releaseHistoryRepository;
+    private final IncidentRepository incidentRepository;
+    private final IncidentAnalysisRepository incidentAnalysisRepository;
     private final DocumentRepository documentRepository;
 
     @Transactional
@@ -230,6 +235,41 @@ public class ReleasePlanService {
     public ReleasePlanResponse getById(Long id) {
         return toResponse(releasePlanRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("반영 계획서를 찾을 수 없습니다: " + id)));
+    }
+
+    /**
+     * 반영 계획서와 그 하위(반영 이력 → 장애 → 장애 분석) 및 관련 문서 메타를 함께 삭제한다.
+     * FK 제약을 제거했으므로 하위 데이터를 직접 정리해 고아 레코드를 방지한다.
+     */
+    @Transactional
+    public void deletePlan(Long id) {
+        ReleasePlan plan = releasePlanRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("반영 계획서를 찾을 수 없습니다: " + id));
+
+        List<Long> historyIds = releaseHistoryRepository
+                .findByReleasePlanIdOrderByCreatedAtDesc(id).stream()
+                .map(ReleaseHistory::getId)
+                .toList();
+
+        if (!historyIds.isEmpty()) {
+            List<Long> incidentIds = incidentRepository.findByReleaseHistoryIdIn(historyIds).stream()
+                    .map(Incident::getId)
+                    .toList();
+            if (!incidentIds.isEmpty()) {
+                incidentAnalysisRepository.deleteByIncidentIdIn(incidentIds);
+            }
+            incidentRepository.deleteByReleaseHistoryIdIn(historyIds);
+        }
+        releaseHistoryRepository.deleteByReleasePlanId(id);
+
+        // 계획서에 연결된 문서 메타(있으면) 정리
+        documentRepository.findByRefId(id).stream()
+                .filter(d -> "RELEASE_PLAN".equals(d.getType()))
+                .forEach(documentRepository::delete);
+
+        releasePlanRepository.delete(plan);
+        log.info("반영 계획서 삭제 완료: id={}, title={}, 반영이력 {}건",
+                id, plan.getTitle(), historyIds.size());
     }
 
     private ReleasePlanResponse toResponse(ReleasePlan plan) {
