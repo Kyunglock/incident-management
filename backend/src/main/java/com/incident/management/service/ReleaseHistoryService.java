@@ -83,33 +83,48 @@ public class ReleaseHistoryService {
         return toResponse(history);
     }
 
-    /** SR(반영 이력)에 git 커밋을 연동한다. commitHash 가 비면 연동 해제. */
+    /**
+     * SR(반영 이력)에 git 커밋을 연동한다. 여러 커밋을 콤마로 구분해 전달.
+     * commitHashes 가 비면 연동 해제.
+     */
     @Transactional
-    public ReleaseHistoryResponse updateGitCommit(Long id, String system, String commitHash, String commitMessage) {
+    public ReleaseHistoryResponse updateGitCommit(Long id, String system, String commitHashes) {
         ReleaseHistory history = releaseHistoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("반영 이력을 찾을 수 없습니다: " + id));
-        boolean cleared = commitHash == null || commitHash.isBlank();
+        List<String> hashes = parseHashes(commitHashes);
+        boolean cleared = hashes.isEmpty();
         history.setGitSystem(cleared ? null : system);
-        history.setGitCommitHash(cleared ? null : commitHash);
-        history.setGitCommitMessage(cleared ? null : commitMessage);
+        history.setGitCommitHashes(cleared ? null : String.join(",", hashes));
         return toResponse(history);
     }
 
-    /** 연동된 git 커밋 기준으로 사이드이펙트 검토를 수행하고 보고서 docPath 를 반환한다. */
+    /** 연동된 git 커밋(들) 기준으로 사이드이펙트 검토를 수행하고 보고서 docPath 를 반환한다. */
     @Transactional
     public String analyzeSideEffect(Long id) {
         ReleaseHistory history = releaseHistoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("반영 이력을 찾을 수 없습니다: " + id));
-        if (history.getGitCommitHash() == null || history.getGitCommitHash().isBlank()) {
+        List<String> hashes = parseHashes(history.getGitCommitHashes());
+        if (hashes.isEmpty()) {
             throw new IllegalArgumentException("git 커밋이 연동되지 않았습니다. 먼저 커밋을 연동하세요.");
         }
         String repoPath = gitProperties.resolveRepoPath(history.getGitSystem());
         if (repoPath == null || repoPath.isBlank()) {
             throw new IllegalArgumentException("git 저장소 경로가 설정되지 않았습니다.");
         }
-        String hash = history.getGitCommitHash();
-        // 연동된 단일 커밋의 변경분(부모 커밋 대비)을 분석한다.
-        return sideEffectService.analyze(repoPath, hash + "~1", hash, history.getReleasePlan().getId());
+        // 연동된 커밋들의 변경분을 합쳐서 분석한다.
+        return sideEffectService.analyzeCommits(repoPath, hashes, history.getReleasePlan().getId());
+    }
+
+    /** 콤마 구분 해시 문자열 → 공백/중복 제거된 리스트 */
+    private List<String> parseHashes(String commitHashes) {
+        if (commitHashes == null || commitHashes.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(commitHashes.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     /** 주어진 반영 이력 ID 중 장애가 등록된 것들의 ID 집합 */
@@ -145,8 +160,7 @@ public class ReleaseHistoryService {
                 .note(history.getNote())
                 .finalConfirmed(history.getFinalConfirmed())
                 .gitSystem(history.getGitSystem())
-                .gitCommitHash(history.getGitCommitHash())
-                .gitCommitMessage(history.getGitCommitMessage())
+                .gitCommitHashes(parseHashes(history.getGitCommitHashes()))
                 .incidentRegistered(incidentRegistered)
                 .createdAt(history.getCreatedAt())
                 .build();

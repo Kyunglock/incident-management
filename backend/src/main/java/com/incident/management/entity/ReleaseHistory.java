@@ -68,11 +68,9 @@ public class ReleaseHistory {
     /** 연동된 git 시스템(저장소) 키. 미지정 시 기본 저장소 사용 */
     private String gitSystem;
 
-    /** 연동된 git 커밋 해시 */
-    private String gitCommitHash;
-
-    /** 연동된 git 커밋 메시지 (표시용) */
-    private String gitCommitMessage;
+    /** 연동된 git 커밋 해시 목록 (콤마 구분). 여러 커밋을 한 SR 에 연동할 수 있다. */
+    @Column(columnDefinition = "TEXT")
+    private String gitCommitHashes;
 
     @CreationTimestamp
     @Column(updatable = false)

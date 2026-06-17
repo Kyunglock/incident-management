@@ -47,15 +47,14 @@ public class ReleaseHistoryController {
         return ResponseEntity.ok(releaseHistoryService.updateSrNumber(id, srNumber));
     }
 
-    /** SR 에 git 커밋 연동 (commitHash 가 비면 연동 해제) */
+    /** SR 에 git 커밋 연동 (commitHashes: 콤마 구분 다중 해시, 비면 연동 해제) */
     @PatchMapping("/api/release-histories/{id}/git-commit")
     public ResponseEntity<ReleaseHistoryResponse> updateGitCommit(
             @PathVariable Long id,
             @RequestParam(required = false) String system,
-            @RequestParam(required = false) String commitHash,
-            @RequestParam(required = false) String commitMessage) {
+            @RequestParam(required = false) String commitHashes) {
         return ResponseEntity.ok(
-                releaseHistoryService.updateGitCommit(id, system, commitHash, commitMessage));
+                releaseHistoryService.updateGitCommit(id, system, commitHashes));
     }
 
     /** 연동된 git 커밋 기준 사이드이펙트 검토 */

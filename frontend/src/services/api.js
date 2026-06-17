@@ -42,7 +42,7 @@ export const updateFinalConfirmed = (id, finalConfirmed) =>
 export const updateSrNumber = (id, srNumber) =>
   api.patch(`/release-histories/${id}/sr-number`, null, { params: { srNumber } })
 
-// SR 에 git 커밋 연동 (commitHash 가 비면 연동 해제)
+// SR 에 git 커밋 연동 (params.commitHashes: 콤마 구분 다중 해시, 비면 연동 해제)
 export const updateHistoryGitCommit = (id, params) =>
   api.patch(`/release-histories/${id}/git-commit`, null, { params })
 
