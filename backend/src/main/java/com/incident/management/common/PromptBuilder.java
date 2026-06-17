@@ -29,6 +29,26 @@ public class PromptBuilder {
                 """, commitMessages, excelSummary);
     }
 
+    /**
+     * 한 날짜(시트)에 포함된 SR 작업내용들을 한 줄로 요약하는 프롬프트.
+     * JSON 없이 순수 텍스트 한 줄만 받기 위해 형식을 단순화한다.
+     */
+    public String buildWorkSummaryPrompt(String workItems) {
+        return String.format("""
+                당신은 IT 운영 담당자를 돕는 AI 어시스턴트입니다.
+                아래는 같은 날짜에 반영된 작업(SR) 목록입니다.
+                전체를 대표하는 한국어 한 줄 요약을 작성해 주세요.
+
+                규칙:
+                - 80자 이내, 한 문장
+                - 마크다운/따옴표/줄바꿈 없이 평문으로만
+                - 핵심 작업 위주로 간결하게 (예: "통합검색 필터 개선 및 통계 데이터 반영 외 2건")
+
+                [작업 목록]
+                %s
+                """, workItems);
+    }
+
     public String buildSideEffectPrompt(String gitDiff) {
         return String.format("""
                 아래 git diff를 분석하여 사이드이펙트를 JSON으로 보고해 주세요.

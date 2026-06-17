@@ -41,8 +41,9 @@ public class ReleaseController {
      */
     @PostMapping("/import")
     public ResponseEntity<ReleasePlanImportResponse> importPlans(
-            @RequestParam MultipartFile excelFile) {
-        return ResponseEntity.ok(releasePlanService.importFromExcel(excelFile));
+            @RequestParam MultipartFile excelFile,
+            @RequestParam(defaultValue = "true") boolean summarize) {
+        return ResponseEntity.ok(releasePlanService.importFromExcel(excelFile, summarize));
     }
 
     @GetMapping

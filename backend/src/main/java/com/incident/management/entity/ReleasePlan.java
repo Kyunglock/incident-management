@@ -23,6 +23,10 @@ public class ReleasePlan {
     @Column(length = 200)
     private String title;
 
+    /** 시트 내 SR 작업내용을 LLM으로 한 줄 요약한 값 (목록 표시용). */
+    @Column(length = 500)
+    private String summary;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
