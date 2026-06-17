@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -18,17 +20,20 @@ public class LlmClient {
     private final ObjectMapper objectMapper;
     private final String chatUrl;
     private final String model;
+    private final String userAgent;
 
     public LlmClient(
             WebClient webClient,
             @Value("${ai.llm.url:https://kwaklabs.com/api/v1/kwakai/chat}") String chatUrl,
             @Value("${ai.llm.model:qwen3-coder:latest}") String model,
+            @Value("${ai.llm.user-agent:curl/8.4.0}") String userAgent,
             ObjectMapper objectMapper) {
         // 인증서 검증을 완화한 공용 WebClient 빈을 재사용한다.
         this.webClient = webClient;
         this.objectMapper = objectMapper;
         this.chatUrl = chatUrl;
         this.model = model;
+        this.userAgent = userAgent;
     }
 
     public String chat(String prompt) {
@@ -41,6 +46,10 @@ public class LlmClient {
 
             String response = webClient.post()
                     .uri(chatUrl)
+                    // 일부 서버/WAF가 클라이언트 User-Agent로 차단(403)하므로 curl 과 동일하게 보낸다.
+                    .header(HttpHeaders.USER_AGENT, userAgent)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(String.class)
