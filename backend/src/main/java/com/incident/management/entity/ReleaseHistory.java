@@ -65,6 +65,15 @@ public class ReleaseHistory {
     @Builder.Default
     private Boolean finalConfirmed = false;
 
+    /** 연동된 git 시스템(저장소) 키. 미지정 시 기본 저장소 사용 */
+    private String gitSystem;
+
+    /** 연동된 git 커밋 해시 */
+    private String gitCommitHash;
+
+    /** 연동된 git 커밋 메시지 (표시용) */
+    private String gitCommitMessage;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

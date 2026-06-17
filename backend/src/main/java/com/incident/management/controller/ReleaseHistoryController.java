@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -44,5 +45,22 @@ public class ReleaseHistoryController {
             @PathVariable Long id,
             @RequestParam(required = false) String srNumber) {
         return ResponseEntity.ok(releaseHistoryService.updateSrNumber(id, srNumber));
+    }
+
+    /** SR 에 git 커밋 연동 (commitHash 가 비면 연동 해제) */
+    @PatchMapping("/api/release-histories/{id}/git-commit")
+    public ResponseEntity<ReleaseHistoryResponse> updateGitCommit(
+            @PathVariable Long id,
+            @RequestParam(required = false) String system,
+            @RequestParam(required = false) String commitHash,
+            @RequestParam(required = false) String commitMessage) {
+        return ResponseEntity.ok(
+                releaseHistoryService.updateGitCommit(id, system, commitHash, commitMessage));
+    }
+
+    /** 연동된 git 커밋 기준 사이드이펙트 검토 */
+    @PostMapping("/api/release-histories/{id}/side-effect")
+    public ResponseEntity<Map<String, String>> analyzeSideEffect(@PathVariable Long id) {
+        return ResponseEntity.ok(Map.of("docPath", releaseHistoryService.analyzeSideEffect(id)));
     }
 }

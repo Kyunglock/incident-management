@@ -158,10 +158,10 @@
                   <th class="py-2 px-3 font-medium">작업내용</th>
                   <th class="py-2 px-3 font-medium">요청자</th>
                   <th class="py-2 px-3 font-medium">작업자</th>
-                  <th class="py-2 px-3 font-medium text-center">FE</th>
-                  <th class="py-2 px-3 font-medium text-center">BE</th>
+                  <th class="py-2 px-3 font-medium w-52">Git 커밋</th>
+                  <th class="py-2 px-3 font-medium text-center">사이드이펙트</th>
+                  <th class="py-2 px-3 font-medium text-center">장애</th>
                   <th class="py-2 px-3 font-medium">비고</th>
-                  <th class="py-2 px-3 font-medium text-center bg-red-50">최종확인</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,13 +176,33 @@
                   <td class="py-2 px-3 text-gray-700 cursor-pointer" @click="goHistory(h.id)">{{ h.workContent || '-' }}</td>
                   <td class="py-2 px-3 text-gray-500 cursor-pointer" @click="goHistory(h.id)">{{ h.requester || '-' }}</td>
                   <td class="py-2 px-3 text-gray-500 cursor-pointer" @click="goHistory(h.id)">{{ h.worker || '-' }}</td>
-                  <td class="py-2 px-3 text-center cursor-pointer" @click="goHistory(h.id)">{{ h.frontendChanged ? 'O' : '' }}</td>
-                  <td class="py-2 px-3 text-center cursor-pointer" @click="goHistory(h.id)">{{ h.backendChanged ? 'O' : '' }}</td>
-                  <td class="py-2 px-3 text-gray-500 cursor-pointer" @click="goHistory(h.id)">{{ h.note || '-' }}</td>
-                  <td class="py-2 px-3 text-center bg-red-50 cursor-pointer"
-                    :class="h.finalConfirmed ? 'text-green-600' : 'text-gray-300'" @click="goHistory(h.id)">
-                    {{ h.finalConfirmed ? 'O' : '-' }}
+                  <!-- Git 커밋 연동 -->
+                  <td class="py-2 px-3" @click.stop>
+                    <select :value="h.gitCommitHash || ''" @change="linkCommit(h, $event.target.value)"
+                      class="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:border-blue-400 focus:outline-none">
+                      <option value="">{{ gitCommits.length ? '커밋 선택' : '커밋 없음' }}</option>
+                      <option v-for="c in gitCommits" :key="c.hash" :value="c.hash">
+                        {{ c.hash.slice(0, 7) }} · {{ c.message }}
+                      </option>
+                    </select>
                   </td>
+                  <!-- 사이드이펙트 검토 (git 커밋 연동 시 활성화) -->
+                  <td class="py-2 px-3 text-center" @click.stop>
+                    <button @click="runRowSideEffect(h)"
+                      :disabled="!h.gitCommitHash || sideEffectLoading[h.id]"
+                      class="text-xs px-2 py-1 rounded border disabled:opacity-40 disabled:cursor-not-allowed"
+                      :class="h.gitCommitHash ? 'text-blue-600 border-blue-200 hover:bg-blue-50' : 'text-gray-400 border-gray-200'"
+                      :title="h.gitCommitHash ? '연동된 커밋으로 사이드이펙트 검토' : 'git 커밋을 먼저 연동하세요'">
+                      {{ sideEffectLoading[h.id] ? '검토 중...' : '🔍 검토' }}
+                    </button>
+                  </td>
+                  <!-- 장애 등록 여부 -->
+                  <td class="py-2 px-3 text-center cursor-pointer" @click="goHistory(h.id)">
+                    <span v-if="h.incidentRegistered"
+                      class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium">🚨 등록됨</span>
+                    <span v-else class="text-xs text-gray-300">미등록</span>
+                  </td>
+                  <td class="py-2 px-3 text-gray-500 cursor-pointer" @click="goHistory(h.id)">{{ h.note || '-' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -208,6 +228,7 @@ import { useRouter } from 'vue-router'
 import {
   generateReleasePlan, importReleasePlans, getReleasePlans, getReleaseHistories,
   updateSrNumber, downloadDocument, deleteReleasePlan,
+  getGitCommits, updateHistoryGitCommit, analyzeHistorySideEffect,
 } from '../services/api.js'
 import Breadcrumb from '../components/Breadcrumb.vue'
 
@@ -240,6 +261,10 @@ const totalPages = ref(0)
 const expanded = reactive({})
 const histories = reactive({})
 const loadingHistories = reactive({})
+
+// git 커밋 연동
+const gitCommits = ref([])
+const sideEffectLoading = reactive({})
 
 const pageNumbers = computed(() => {
   const windowSize = 5
@@ -300,6 +325,44 @@ const toggle = (planId) => {
 
 const goHistory = (id) => router.push(`/release-histories/${id}`)
 
+const loadGitCommits = async () => {
+  try {
+    const res = await getGitCommits({ count: 50 })
+    gitCommits.value = res.data
+  } catch (e) {
+    gitCommits.value = []
+  }
+}
+
+// SR 행에 git 커밋 연동 (빈 값이면 연동 해제)
+const linkCommit = async (h, hash) => {
+  const commit = gitCommits.value.find(c => c.hash === hash)
+  try {
+    const res = await updateHistoryGitCommit(h.id, {
+      commitHash: hash || '',
+      commitMessage: commit ? commit.message : '',
+    })
+    Object.assign(h, res.data)
+  } catch (e) {
+    error.value = 'git 커밋 연동 실패'
+  }
+}
+
+// 연동된 커밋 기준 사이드이펙트 검토 → 보고서 다운로드
+const runRowSideEffect = async (h) => {
+  if (!h.gitCommitHash) return
+  sideEffectLoading[h.id] = true
+  error.value = ''
+  try {
+    const res = await analyzeHistorySideEffect(h.id)
+    if (res.data?.docPath) await downloadDoc(res.data.docPath)
+  } catch (e) {
+    error.value = e.response?.data?.message || '사이드이펙트 검토 실패'
+  } finally {
+    sideEffectLoading[h.id] = false
+  }
+}
+
 const removePlan = async (p) => {
   if (!confirm(`'${p.title}' 반영 계획서와 하위 반영 이력/장애를 모두 삭제할까요?`)) return
   deletingId.value = p.id
@@ -338,7 +401,10 @@ const goPage = (n) => {
   loadPlans()
 }
 
-onMounted(loadPlans)
+onMounted(() => {
+  loadPlans()
+  loadGitCommits()
+})
 
 const generatePlan = async () => {
   if (!excelFile.value) return

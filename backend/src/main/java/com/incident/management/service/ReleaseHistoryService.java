@@ -1,10 +1,12 @@
 package com.incident.management.service;
 
+import com.incident.management.config.GitProperties;
 import com.incident.management.dto.request.CreateReleaseHistoryRequest;
 import com.incident.management.dto.response.ReleaseHistoryResponse;
 import com.incident.management.entity.ReleaseHistory;
 import com.incident.management.entity.ReleasePlan;
 import com.incident.management.exception.ResourceNotFoundException;
+import com.incident.management.repository.IncidentRepository;
 import com.incident.management.repository.ReleaseHistoryRepository;
 import com.incident.management.repository.ReleasePlanRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,6 +25,9 @@ public class ReleaseHistoryService {
     private final ReleaseHistoryRepository releaseHistoryRepository;
     private final ReleasePlanRepository releasePlanRepository;
     private final RedmineService redmineService;
+    private final IncidentRepository incidentRepository;
+    private final GitProperties gitProperties;
+    private final SideEffectService sideEffectService;
 
     @Transactional
     public ReleaseHistoryResponse create(Long releasePlanId, CreateReleaseHistoryRequest request) {
@@ -44,8 +50,13 @@ public class ReleaseHistoryService {
     }
 
     public List<ReleaseHistoryResponse> getByPlan(Long releasePlanId) {
-        return releaseHistoryRepository.findByReleasePlanIdOrderByCreatedAtDesc(releasePlanId).stream()
-                .map(this::toResponse)
+        List<ReleaseHistory> histories =
+                releaseHistoryRepository.findByReleasePlanIdOrderByCreatedAtDesc(releasePlanId);
+        // 장애 등록 여부를 한 번에 조회 (N+1 방지)
+        Set<Long> withIncident = historyIdsWithIncident(
+                histories.stream().map(ReleaseHistory::getId).collect(Collectors.toList()));
+        return histories.stream()
+                .map(h -> toResponse(h, withIncident.contains(h.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -72,7 +83,52 @@ public class ReleaseHistoryService {
         return toResponse(history);
     }
 
+    /** SR(반영 이력)에 git 커밋을 연동한다. commitHash 가 비면 연동 해제. */
+    @Transactional
+    public ReleaseHistoryResponse updateGitCommit(Long id, String system, String commitHash, String commitMessage) {
+        ReleaseHistory history = releaseHistoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("반영 이력을 찾을 수 없습니다: " + id));
+        boolean cleared = commitHash == null || commitHash.isBlank();
+        history.setGitSystem(cleared ? null : system);
+        history.setGitCommitHash(cleared ? null : commitHash);
+        history.setGitCommitMessage(cleared ? null : commitMessage);
+        return toResponse(history);
+    }
+
+    /** 연동된 git 커밋 기준으로 사이드이펙트 검토를 수행하고 보고서 docPath 를 반환한다. */
+    @Transactional
+    public String analyzeSideEffect(Long id) {
+        ReleaseHistory history = releaseHistoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("반영 이력을 찾을 수 없습니다: " + id));
+        if (history.getGitCommitHash() == null || history.getGitCommitHash().isBlank()) {
+            throw new IllegalArgumentException("git 커밋이 연동되지 않았습니다. 먼저 커밋을 연동하세요.");
+        }
+        String repoPath = gitProperties.resolveRepoPath(history.getGitSystem());
+        if (repoPath == null || repoPath.isBlank()) {
+            throw new IllegalArgumentException("git 저장소 경로가 설정되지 않았습니다.");
+        }
+        String hash = history.getGitCommitHash();
+        // 연동된 단일 커밋의 변경분(부모 커밋 대비)을 분석한다.
+        return sideEffectService.analyze(repoPath, hash + "~1", hash, history.getReleasePlan().getId());
+    }
+
+    /** 주어진 반영 이력 ID 중 장애가 등록된 것들의 ID 집합 */
+    private Set<Long> historyIdsWithIncident(List<Long> historyIds) {
+        if (historyIds.isEmpty()) {
+            return Set.of();
+        }
+        return incidentRepository.findByReleaseHistoryIdIn(historyIds).stream()
+                .map(i -> i.getReleaseHistory().getId())
+                .collect(Collectors.toSet());
+    }
+
     private ReleaseHistoryResponse toResponse(ReleaseHistory history) {
+        boolean hasIncident = !incidentRepository
+                .findByReleaseHistoryIdOrderByOccurredAtDesc(history.getId()).isEmpty();
+        return toResponse(history, hasIncident);
+    }
+
+    private ReleaseHistoryResponse toResponse(ReleaseHistory history, boolean incidentRegistered) {
         return ReleaseHistoryResponse.builder()
                 .id(history.getId())
                 .releasePlanId(history.getReleasePlan().getId())
@@ -88,6 +144,10 @@ public class ReleaseHistoryService {
                 .backendChanged(history.getBackendChanged())
                 .note(history.getNote())
                 .finalConfirmed(history.getFinalConfirmed())
+                .gitSystem(history.getGitSystem())
+                .gitCommitHash(history.getGitCommitHash())
+                .gitCommitMessage(history.getGitCommitMessage())
+                .incidentRegistered(incidentRegistered)
                 .createdAt(history.getCreatedAt())
                 .build();
     }

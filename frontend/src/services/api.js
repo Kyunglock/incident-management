@@ -42,6 +42,14 @@ export const updateFinalConfirmed = (id, finalConfirmed) =>
 export const updateSrNumber = (id, srNumber) =>
   api.patch(`/release-histories/${id}/sr-number`, null, { params: { srNumber } })
 
+// SR 에 git 커밋 연동 (commitHash 가 비면 연동 해제)
+export const updateHistoryGitCommit = (id, params) =>
+  api.patch(`/release-histories/${id}/git-commit`, null, { params })
+
+// 연동된 git 커밋 기준 사이드이펙트 검토
+export const analyzeHistorySideEffect = (id) =>
+  api.post(`/release-histories/${id}/side-effect`)
+
 // 장애이력 (반영이력 하위)
 export const createIncident = (historyId, params) =>
   api.post(`/release-histories/${historyId}/incidents`, null, { params })
