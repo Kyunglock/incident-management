@@ -118,16 +118,23 @@
     <div v-else class="space-y-3">
       <section v-for="p in plans" :key="p.id" class="border rounded-lg bg-white overflow-hidden">
         <!-- 계획서 헤더 (클릭 시 펼침) -->
-        <button @click="toggle(p.id)"
-          class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 text-left">
-          <div class="flex items-center gap-3 min-w-0">
-            <span class="text-gray-400 transition-transform" :class="{ 'rotate-90': expanded[p.id] }">▶</span>
-            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono">#{{ p.id }}</span>
-            <span class="font-semibold text-gray-800 whitespace-nowrap">{{ p.title }}</span>
-            <span v-if="p.summary" class="text-sm text-gray-500 truncate">— {{ p.summary }}</span>
-          </div>
-          <span class="text-xs text-gray-400 whitespace-nowrap pl-3">{{ p.createdAt }}</span>
-        </button>
+        <div class="flex items-center hover:bg-gray-50">
+          <button @click="toggle(p.id)"
+            class="flex-1 min-w-0 flex items-center justify-between px-5 py-4 text-left">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="text-gray-400 transition-transform" :class="{ 'rotate-90': expanded[p.id] }">▶</span>
+              <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono">#{{ p.id }}</span>
+              <span class="font-semibold text-gray-800 whitespace-nowrap">{{ p.title }}</span>
+              <span v-if="p.summary" class="text-sm text-gray-500 truncate">— {{ p.summary }}</span>
+            </div>
+            <span class="text-xs text-gray-400 whitespace-nowrap pl-3">{{ p.createdAt }}</span>
+          </button>
+          <button @click.stop="removePlan(p)" :disabled="deletingId === p.id"
+            class="px-4 self-stretch text-sm text-gray-400 hover:text-red-600 disabled:opacity-40"
+            title="반영 계획서 삭제">
+            {{ deletingId === p.id ? '삭제 중…' : '🗑' }}
+          </button>
+        </div>
 
         <!-- 펼친 영역: 반영 이력 목록 -->
         <div v-if="expanded[p.id]" class="border-t bg-gray-50/50 px-5 py-4">
@@ -200,7 +207,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   generateReleasePlan, importReleasePlans, getReleasePlans, getReleaseHistories,
-  updateSrNumber, downloadDocument,
+  updateSrNumber, downloadDocument, deleteReleasePlan,
 } from '../services/api.js'
 import Breadcrumb from '../components/Breadcrumb.vue'
 
@@ -221,6 +228,7 @@ const plans = ref([])
 const loading = ref(false)
 const loadingList = ref(true)
 const error = ref('')
+const deletingId = ref(null)
 
 const keyword = ref('')
 const appliedKeyword = ref('')
@@ -291,6 +299,23 @@ const toggle = (planId) => {
 }
 
 const goHistory = (id) => router.push(`/release-histories/${id}`)
+
+const removePlan = async (p) => {
+  if (!confirm(`'${p.title}' 반영 계획서와 하위 반영 이력/장애를 모두 삭제할까요?`)) return
+  deletingId.value = p.id
+  try {
+    await deleteReleasePlan(p.id)
+    delete expanded[p.id]
+    delete histories[p.id]
+    // 마지막 항목 삭제로 빈 페이지가 되면 이전 페이지로
+    if (plans.value.length === 1 && page.value > 0) page.value -= 1
+    await loadPlans()
+  } catch (e) {
+    error.value = e.response?.data?.message || '삭제 실패'
+  } finally {
+    deletingId.value = null
+  }
+}
 
 const saveSr = async (h) => {
   try {

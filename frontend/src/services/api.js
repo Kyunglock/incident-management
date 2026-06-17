@@ -14,6 +14,8 @@ export const getReleasePlans = (params) => api.get('/release-plans', { params })
 
 export const getReleasePlan = (id) => api.get(`/release-plans/${id}`)
 
+export const deleteReleasePlan = (id) => api.delete(`/release-plans/${id}`)
+
 export const analyzeSideEffect = (id, params) =>
   api.post(`/release-plans/${id}/side-effect`, null, { params })
 

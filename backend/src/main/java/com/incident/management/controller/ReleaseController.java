@@ -59,6 +59,13 @@ public class ReleaseController {
         return ResponseEntity.ok(releasePlanService.getById(id));
     }
 
+    /** 반영 계획서와 하위(반영 이력/장애/장애 분석)를 함께 삭제한다. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        releasePlanService.deletePlan(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/side-effect")
     public ResponseEntity<Map<String, String>> analyzeSideEffect(
             @PathVariable Long id,
