@@ -8,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.List;
 import java.util.Map;
@@ -25,7 +26,7 @@ public class LlmClient {
     public LlmClient(
             WebClient webClient,
             @Value("${ai.llm.url:https://kwaklabs.com/api/v1/kwakai/chat}") String chatUrl,
-            @Value("${ai.llm.model:gemma4}") String model,
+            @Value("${ai.llm.model:gemma4-31b}") String model,
             @Value("${ai.llm.user-agent:curl/8.4.0}") String userAgent,
             ObjectMapper objectMapper) {
         // 인증서 검증을 완화한 공용 WebClient 빈을 재사용한다.
@@ -48,7 +49,7 @@ public class LlmClient {
                     .uri(chatUrl)
                     // 일부 서버/WAF가 클라이언트 User-Agent로 차단(403)하므로 curl 과 동일하게 보낸다.
                     .header(HttpHeaders.USER_AGENT, userAgent)
-                    .accept(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.ALL)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
@@ -57,6 +58,12 @@ public class LlmClient {
 
             JsonNode root = objectMapper.readTree(response);
             return stripCodeFences(extractContent(root));
+        } catch (WebClientResponseException e) {
+            // 서버가 내려준 상태/본문을 함께 남겨 원인(인증/차단 등)을 파악한다.
+            log.error("LLM 호출 실패 - status={} headers={} body={}",
+                    e.getStatusCode(), e.getHeaders(), e.getResponseBodyAsString());
+            throw new RuntimeException("LLM 호출 실패(" + e.getStatusCode() + "): "
+                    + e.getResponseBodyAsString());
         } catch (Exception e) {
             log.error("LLM 호출 실패", e);
             throw new RuntimeException("LLM 호출 중 오류가 발생했습니다: " + e.getMessage());
