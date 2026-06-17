@@ -6,6 +6,10 @@ const api = axios.create({ baseURL: '/api' })
 export const generateReleasePlan = (formData) =>
   api.post('/release-plans', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 
+// 다중 시트 엑셀 업로드 → 시트(날짜)별 반영 계획서 일괄 생성
+export const importReleasePlans = (formData) =>
+  api.post('/release-plans/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+
 export const getReleasePlans = (params) => api.get('/release-plans', { params })
 
 export const getReleasePlan = (id) => api.get(`/release-plans/${id}`)
