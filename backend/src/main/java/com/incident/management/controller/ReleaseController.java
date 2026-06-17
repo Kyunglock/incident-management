@@ -26,12 +26,12 @@ public class ReleaseController {
     public ResponseEntity<ReleasePlanResponse> generatePlan(
             @RequestParam MultipartFile excelFile,
             @RequestParam(defaultValue = "false") boolean useGit,
-            @RequestParam(required = false) String repoPath,
+            @RequestParam(required = false) String system,
             @RequestParam(required = false) String commitFrom,
             @RequestParam(required = false) String commitTo,
             @RequestParam(required = false) String releaseTitle) {
         ReleasePlanResponse response = releasePlanService.generatePlan(
-                excelFile, useGit, repoPath, commitFrom, commitTo, releaseTitle);
+                excelFile, useGit, system, commitFrom, commitTo, releaseTitle);
         return ResponseEntity.ok(response);
     }
 
@@ -69,20 +69,22 @@ public class ReleaseController {
     @PostMapping("/{id}/side-effect")
     public ResponseEntity<Map<String, String>> analyzeSideEffect(
             @PathVariable Long id,
-            @RequestParam String repoPath,
+            @RequestParam String system,
+            @RequestParam(required = false) String project,
             @RequestParam(required = false) String commitFrom,
             @RequestParam(required = false) String commitTo) {
-        String docPath = sideEffectService.analyze(repoPath, commitFrom, commitTo, id);
+        String docPath = sideEffectService.analyze(system, project, commitFrom, commitTo, id);
         return ResponseEntity.ok(Map.of("docPath", docPath));
     }
 
     @PostMapping("/{id}/vuln-check")
     public ResponseEntity<Map<String, String>> analyzeVuln(
             @PathVariable Long id,
-            @RequestParam String repoPath,
+            @RequestParam String system,
+            @RequestParam(required = false) String project,
             @RequestParam(required = false) String commitFrom,
             @RequestParam(required = false) String commitTo) {
-        String docPath = vulnCheckService.analyze(repoPath, commitFrom, commitTo, id);
+        String docPath = vulnCheckService.analyze(system, project, commitFrom, commitTo, id);
         return ResponseEntity.ok(Map.of("docPath", docPath));
     }
 }

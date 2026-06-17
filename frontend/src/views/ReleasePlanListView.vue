@@ -77,8 +77,11 @@
           </label>
           <div v-if="form.useGit" class="space-y-3">
             <div>
-              <label class="label">git 저장소 경로</label>
-              <input v-model="form.repoPath" type="text" class="input" placeholder="/path/to/repo" />
+              <label class="label">시스템 (저장소)</label>
+              <select v-model="form.system" class="input">
+                <option value="">선택</option>
+                <option v-for="s in gitSystems" :key="s" :value="s">{{ s }}</option>
+              </select>
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
@@ -140,7 +143,14 @@
         <div v-if="expanded[p.id]" class="border-t bg-gray-50/50 px-5 py-4">
           <div class="flex items-center justify-between mb-3">
             <h4 class="text-sm font-semibold text-gray-600">반영 이력 (SR 단위)</h4>
-            <div class="flex gap-2">
+            <div class="flex items-center gap-2">
+              <label v-if="gitSystems.length" class="flex items-center gap-1 text-xs text-gray-500">
+                커밋 시스템
+                <select v-model="selectedSystem" @change="loadGitCommits"
+                  class="border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:border-blue-400 focus:outline-none">
+                  <option v-for="s in gitSystems" :key="s" :value="s">{{ s }}</option>
+                </select>
+              </label>
               <router-link :to="`/release-plans/${p.id}`" class="text-xs text-blue-600 hover:underline">⚙ 사이드이펙트/취약점 분석</router-link>
               <button v-if="p.docPath" @click="downloadDoc(p.docPath)" class="text-xs text-blue-600 hover:underline">⬇ docx 다운로드</button>
             </div>
@@ -189,11 +199,12 @@
                     <div v-if="commitPickerOpen[h.id]"
                       class="absolute z-20 left-3 right-3 mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-64 overflow-auto">
                       <div v-if="!gitCommits.length" class="px-3 py-3 text-xs text-gray-400">커밋이 없습니다.</div>
-                      <label v-for="c in gitCommits" :key="c.hash"
+                      <label v-for="c in gitCommits" :key="commitToken(c)"
                         class="flex items-start gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer">
                         <input type="checkbox" class="mt-0.5 w-3.5 h-3.5 flex-shrink-0"
-                          :checked="isCommitSelected(h, c.hash)" @change="toggleCommit(h, c.hash)" />
+                          :checked="isCommitSelected(h, c)" @change="toggleCommit(h, c)" />
                         <span class="min-w-0">
+                          <span v-if="c.project" class="text-gray-400">[{{ projLabel(c.project) }}] </span>
                           <span class="font-mono text-blue-600">{{ c.hash.slice(0, 7) }}</span>
                           <span class="text-gray-600"> · {{ c.message }}</span>
                         </span>
@@ -242,13 +253,13 @@ import { useRouter } from 'vue-router'
 import {
   generateReleasePlan, importReleasePlans, getReleasePlans, getReleaseHistories,
   updateSrNumber, downloadDocument, deleteReleasePlan,
-  getGitCommits, updateHistoryGitCommit, analyzeHistorySideEffect,
+  getGitCommits, getGitSystems, updateHistoryGitCommit, analyzeHistorySideEffect,
 } from '../services/api.js'
 import Breadcrumb from '../components/Breadcrumb.vue'
 
 const router = useRouter()
 
-const form = reactive({ releaseTitle: '', useGit: false, repoPath: '', commitFrom: '', commitTo: '' })
+const form = reactive({ releaseTitle: '', useGit: false, system: '', commitFrom: '', commitTo: '' })
 const excelFile = ref(null)
 const showCreate = ref(false)
 
@@ -277,6 +288,8 @@ const histories = reactive({})
 const loadingHistories = reactive({})
 
 // git 커밋 연동
+const gitSystems = ref([])
+const selectedSystem = ref('')
 const gitCommits = ref([])
 const sideEffectLoading = reactive({})
 const commitPickerOpen = reactive({})
@@ -340,9 +353,21 @@ const toggle = (planId) => {
 
 const goHistory = (id) => router.push(`/release-histories/${id}`)
 
+const loadGitSystems = async () => {
+  try {
+    const res = await getGitSystems()
+    gitSystems.value = res.data || []
+    if (!selectedSystem.value && gitSystems.value.length) {
+      selectedSystem.value = gitSystems.value[0]
+    }
+  } catch (e) {
+    gitSystems.value = []
+  }
+}
+
 const loadGitCommits = async () => {
   try {
-    const res = await getGitCommits({ count: 50 })
+    const res = await getGitCommits({ system: selectedSystem.value || undefined, count: 50 })
     gitCommits.value = res.data
   } catch (e) {
     gitCommits.value = []
@@ -350,21 +375,35 @@ const loadGitCommits = async () => {
 }
 
 // --- git 커밋 다중 선택 ---
+// 저장 토큰: project 가 있으면 "project@hash", 없으면(로컬) "hash"
+const commitToken = (c) => (c.project ? `${c.project}@${c.hash}` : c.hash)
+const tokenHash = (token) => { const i = token.lastIndexOf('@'); return i < 0 ? token : token.slice(i + 1) }
+const tokenProject = (token) => { const i = token.lastIndexOf('@'); return i < 0 ? '' : token.slice(0, i) }
+const projLabel = (project) => (project ? project.split('/').pop() : '')
+
 const selectedHashes = (h) => h.gitCommitHashes || []
 const commitCount = (h) => selectedHashes(h).length
-const isCommitSelected = (h, hash) => selectedHashes(h).includes(hash)
-const shortHashes = (h) => selectedHashes(h).map(x => x.slice(0, 7)).join(', ')
+const isCommitSelected = (h, c) => selectedHashes(h).includes(commitToken(c))
+const shortHashes = (h) => selectedHashes(h).map(t => {
+  const p = tokenProject(t)
+  const short = tokenHash(t).slice(0, 7)
+  return p ? `[${projLabel(p)}] ${short}` : short
+}).join(', ')
 
 const toggleCommitPicker = (id) => { commitPickerOpen[id] = !commitPickerOpen[id] }
 
-// 커밋 체크/해제 후 연동 저장 (선택 해시 전체를 콤마로 보냄)
-const toggleCommit = async (h, hash) => {
+// 커밋 체크/해제 후 연동 저장 (선택 토큰 전체를 콤마로 보냄)
+const toggleCommit = async (h, c) => {
+  const token = commitToken(c)
   const current = selectedHashes(h)
-  const next = current.includes(hash)
-    ? current.filter(x => x !== hash)
-    : [...current, hash]
+  const next = current.includes(token)
+    ? current.filter(x => x !== token)
+    : [...current, token]
   try {
-    const res = await updateHistoryGitCommit(h.id, { commitHashes: next.join(',') })
+    const res = await updateHistoryGitCommit(h.id, {
+      system: selectedSystem.value || undefined,
+      commitHashes: next.join(','),
+    })
     Object.assign(h, res.data)
   } catch (e) {
     error.value = 'git 커밋 연동 실패'
@@ -429,8 +468,9 @@ const closeAllCommitPickers = () => {
   Object.keys(commitPickerOpen).forEach(k => { commitPickerOpen[k] = false })
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadPlans()
+  await loadGitSystems()
   loadGitCommits()
   document.addEventListener('click', closeAllCommitPickers)
 })
@@ -448,7 +488,7 @@ const generatePlan = async () => {
     fd.append('excelFile', excelFile.value)
     fd.append('useGit', form.useGit)
     if (form.useGit) {
-      if (form.repoPath) fd.append('repoPath', form.repoPath)
+      if (form.system) fd.append('system', form.system)
       if (form.commitFrom) fd.append('commitFrom', form.commitFrom)
       if (form.commitTo) fd.append('commitTo', form.commitTo)
     }

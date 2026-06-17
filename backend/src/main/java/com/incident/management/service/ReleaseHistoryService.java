@@ -1,11 +1,11 @@
 package com.incident.management.service;
 
-import com.incident.management.config.GitProperties;
 import com.incident.management.dto.request.CreateReleaseHistoryRequest;
 import com.incident.management.dto.response.ReleaseHistoryResponse;
 import com.incident.management.entity.ReleaseHistory;
 import com.incident.management.entity.ReleasePlan;
 import com.incident.management.exception.ResourceNotFoundException;
+import com.incident.management.git.GitCommitRef;
 import com.incident.management.repository.IncidentRepository;
 import com.incident.management.repository.ReleaseHistoryRepository;
 import com.incident.management.repository.ReleasePlanRepository;
@@ -26,7 +26,6 @@ public class ReleaseHistoryService {
     private final ReleasePlanRepository releasePlanRepository;
     private final RedmineService redmineService;
     private final IncidentRepository incidentRepository;
-    private final GitProperties gitProperties;
     private final SideEffectService sideEffectService;
 
     @Transactional
@@ -103,16 +102,16 @@ public class ReleaseHistoryService {
     public String analyzeSideEffect(Long id) {
         ReleaseHistory history = releaseHistoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("반영 이력을 찾을 수 없습니다: " + id));
-        List<String> hashes = parseHashes(history.getGitCommitHashes());
-        if (hashes.isEmpty()) {
+        List<GitCommitRef> refs = parseHashes(history.getGitCommitHashes()).stream()
+                .map(GitCommitRef::parse)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+        if (refs.isEmpty()) {
             throw new IllegalArgumentException("git 커밋이 연동되지 않았습니다. 먼저 커밋을 연동하세요.");
         }
-        String repoPath = gitProperties.resolveRepoPath(history.getGitSystem());
-        if (repoPath == null || repoPath.isBlank()) {
-            throw new IllegalArgumentException("git 저장소 경로가 설정되지 않았습니다.");
-        }
-        // 연동된 커밋들의 변경분을 합쳐서 분석한다.
-        return sideEffectService.analyzeCommits(repoPath, hashes, history.getReleasePlan().getId());
+        // 연동된 커밋들(project@hash)의 변경분을 합쳐서 분석한다.
+        return sideEffectService.analyzeCommits(
+                history.getGitSystem(), refs, history.getReleasePlan().getId());
     }
 
     /** 콤마 구분 해시 문자열 → 공백/중복 제거된 리스트 */

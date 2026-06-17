@@ -1,6 +1,6 @@
 package com.incident.management.controller;
 
-import com.incident.management.common.GitAdapter;
+import com.incident.management.common.GitCommit;
 import com.incident.management.service.GitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +18,7 @@ public class GitController {
 
     /** 최근 커밋 목록 조회 (체크박스 매핑용). 저장소는 system 키로 백엔드에서 분기 */
     @GetMapping("/commits")
-    public ResponseEntity<List<GitAdapter.Commit>> getCommits(
+    public ResponseEntity<List<GitCommit>> getCommits(
             @RequestParam(required = false) String system,
             @RequestParam(defaultValue = "30") int count) {
         return ResponseEntity.ok(gitService.getCommits(system, count));

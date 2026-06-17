@@ -16,9 +16,22 @@ ai:
     # MLX 서버의 모델 식별자. 서버에 등록된 정확한 이름으로 맞춰야 한다.
     model: gemma4-31b
 
-# git 저장소 경로 (커밋 매핑용). 시스템별로 경로를 분기한다.
+# git 연동 설정 (커밋 매핑용).
 git:
+  provider: ${GIT_PROVIDER:local}   # local(git CLI) | gitlab(REST API)
+
+  # [local 모드] 시스템별 로컬 저장소 경로
   default-repo: ${GIT_DEFAULT_REPO:.}
   repositories: {}
     # member: /repos/member-service
     # payment: /repos/payment-service
+
+  # [gitlab 모드] GitLab REST API 연동
+  gitlab:
+    base-url: ${GITLAB_BASE_URL:https://git.fusionsoft.co.kr}
+    token: ${GITLAB_TOKEN:}          # Personal/Project Access Token (read_api 권한)
+    branch: ${GITLAB_BRANCH:main}
+    systems:                         # system 키 → 프로젝트 경로 목록 (1:N)
+      # 에듀넷:
+      #   - root/cnedu-front-edunet
+      #   - root/cnedu-back-edunet

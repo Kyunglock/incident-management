@@ -2,9 +2,9 @@ package com.incident.management.service;
 
 import com.incident.management.common.DocxRenderer;
 import com.incident.management.common.ExcelParser;
-import com.incident.management.common.GitAdapter;
 import com.incident.management.common.LlmClient;
 import com.incident.management.common.PromptBuilder;
+import com.incident.management.git.GitProvider;
 import com.incident.management.dto.excel.ParsedSheet;
 import com.incident.management.dto.excel.ParsedSrRow;
 import com.incident.management.dto.response.PageResponse;
@@ -44,7 +44,7 @@ public class ReleasePlanService {
     private static final DateTimeFormatter TITLE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final ExcelParser excelParser;
-    private final GitAdapter gitAdapter;
+    private final GitProvider gitProvider;
     private final PromptBuilder promptBuilder;
     private final LlmClient llmClient;
     private final DocxRenderer docxRenderer;
@@ -58,7 +58,7 @@ public class ReleasePlanService {
     public ReleasePlanResponse generatePlan(
             MultipartFile excelFile,
             boolean useGit,
-            String repoPath,
+            String system,
             String commitFrom,
             String commitTo,
             String releaseTitle) {
@@ -68,8 +68,8 @@ public class ReleasePlanService {
             }
             String excelSummary = excelParser.parseWorkItems(excelFile);
 
-            String commitMessages = (useGit && repoPath != null && !repoPath.isBlank())
-                    ? gitAdapter.getCommitMessages(repoPath, 10)
+            String commitMessages = (useGit && system != null && !system.isBlank())
+                    ? gitProvider.commitMessages(system, 10)
                     : "git 정보 없음";
 
             String prompt = promptBuilder.buildReleasePlanPrompt(commitMessages, excelSummary);

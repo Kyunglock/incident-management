@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
  * 레드마인 연동. SR 번호(이슈 번호)로 이슈 정보를 조회해
  * 반영 이력의 서비스/작업내용/요청자/작업자/TEST URL 등 상세 정보를 채운다.
  *
- * TODO: 실제 레드마인 REST API 연동 구현 (base-url, api-key 설정 후
+ * TODO: 실제 레드마인 REST API 연동 구현 (url, api-key 설정 후
  *       GET /issues/{srNumber}.json 호출 → 필드 매핑).
  */
 @Service

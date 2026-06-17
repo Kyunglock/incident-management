@@ -16,25 +16,34 @@
         <div class="grid grid-cols-2 gap-6">
           <div class="space-y-3">
             <div>
-              <label class="label">git 저장소 경로</label>
-              <input v-model="gitForm.repoPath" type="text" class="input" placeholder="/path/to/repo" />
+              <label class="label">시스템 (저장소)</label>
+              <select v-model="gitForm.system" @change="onSystemChange" class="input">
+                <option value="">선택</option>
+                <option v-for="s in gitSystems" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+            <div v-if="gitProjects.length > 1">
+              <label class="label">프로젝트</label>
+              <select v-model="gitForm.project" class="input">
+                <option v-for="p in gitProjects" :key="p" :value="p">{{ p }}</option>
+              </select>
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="label">From commit</label>
-                <input v-model="gitForm.commitFrom" type="text" class="input font-mono text-sm" placeholder="HEAD~1" />
+                <input v-model="gitForm.commitFrom" type="text" class="input font-mono text-sm" placeholder="이전 커밋 SHA" />
               </div>
               <div>
                 <label class="label">To commit</label>
-                <input v-model="gitForm.commitTo" type="text" class="input font-mono text-sm" placeholder="HEAD" />
+                <input v-model="gitForm.commitTo" type="text" class="input font-mono text-sm" placeholder="대상 커밋 SHA" />
               </div>
             </div>
             <div class="flex gap-3">
-              <button @click="runSideEffect" :disabled="!gitForm.repoPath || loading.sideEffect" class="btn-secondary flex-1">
+              <button @click="runSideEffect" :disabled="!gitForm.system || loading.sideEffect" class="btn-secondary flex-1">
                 <span v-if="loading.sideEffect">분석 중...</span>
                 <span v-else>사이드이펙트</span>
               </button>
-              <button @click="runVuln" :disabled="!gitForm.repoPath || loading.vuln" class="btn-secondary flex-1">
+              <button @click="runVuln" :disabled="!gitForm.system || loading.vuln" class="btn-secondary flex-1">
                 <span v-if="loading.vuln">분석 중...</span>
                 <span v-else>취약점 체크</span>
               </button>
@@ -62,7 +71,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getReleasePlan, analyzeSideEffect, analyzeVuln, downloadDocument } from '../services/api.js'
+import {
+  getReleasePlan, analyzeSideEffect, analyzeVuln, downloadDocument,
+  getGitSystems, getGitCommits,
+} from '../services/api.js'
 import Breadcrumb from '../components/Breadcrumb.vue'
 
 const route = useRoute()
@@ -72,7 +84,9 @@ const plan = ref(null)
 const phase2Results = ref([])
 const error = ref('')
 const loading = reactive({ sideEffect: false, vuln: false })
-const gitForm = reactive({ repoPath: '', commitFrom: '', commitTo: '' })
+const gitForm = reactive({ system: '', project: '', commitFrom: '', commitTo: '' })
+const gitSystems = ref([])
+const gitProjects = ref([])
 
 const breadcrumbItems = computed(() => [
   { label: '반영 계획서 목록', to: '/' },
@@ -84,7 +98,34 @@ const load = async () => {
   plan.value = res.data
 }
 
-onMounted(load)
+const loadGitSystems = async () => {
+  try {
+    const res = await getGitSystems()
+    gitSystems.value = res.data || []
+  } catch (e) {
+    gitSystems.value = []
+  }
+}
+
+// 선택한 시스템의 커밋에서 프로젝트 목록을 추려 프로젝트 드롭다운을 채운다.
+const onSystemChange = async () => {
+  gitForm.project = ''
+  gitProjects.value = []
+  if (!gitForm.system) return
+  try {
+    const res = await getGitCommits({ system: gitForm.system, count: 50 })
+    const projects = [...new Set((res.data || []).map(c => c.project).filter(Boolean))]
+    gitProjects.value = projects
+    if (projects.length) gitForm.project = projects[0]
+  } catch (e) {
+    gitProjects.value = []
+  }
+}
+
+onMounted(() => {
+  load()
+  loadGitSystems()
+})
 
 const runSideEffect = async () => {
   loading.sideEffect = true

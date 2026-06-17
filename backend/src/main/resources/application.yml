@@ -19,3 +19,7 @@ spring:
     init:
       mode: always
       encoding: UTF-8
+
+# git 연동 방식 기본값. 실제 저장소/토큰 등 환경별 값은 application-local.yml 에서 설정한다.
+git:
+  provider: ${GIT_PROVIDER:local}   # local(git CLI) | gitlab(REST API)
