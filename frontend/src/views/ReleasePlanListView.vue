@@ -176,23 +176,37 @@
                   <td class="py-2 px-3 text-gray-700 cursor-pointer" @click="goHistory(h.id)">{{ h.workContent || '-' }}</td>
                   <td class="py-2 px-3 text-gray-500 cursor-pointer" @click="goHistory(h.id)">{{ h.requester || '-' }}</td>
                   <td class="py-2 px-3 text-gray-500 cursor-pointer" @click="goHistory(h.id)">{{ h.worker || '-' }}</td>
-                  <!-- Git 커밋 연동 -->
-                  <td class="py-2 px-3" @click.stop>
-                    <select :value="h.gitCommitHash || ''" @change="linkCommit(h, $event.target.value)"
-                      class="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:border-blue-400 focus:outline-none">
-                      <option value="">{{ gitCommits.length ? '커밋 선택' : '커밋 없음' }}</option>
-                      <option v-for="c in gitCommits" :key="c.hash" :value="c.hash">
-                        {{ c.hash.slice(0, 7) }} · {{ c.message }}
-                      </option>
-                    </select>
+                  <!-- Git 커밋 연동 (다중 선택) -->
+                  <td class="py-2 px-3 relative" @click.stop>
+                    <button @click="toggleCommitPicker(h.id)"
+                      class="w-full flex items-center justify-between gap-1 border border-gray-200 rounded px-2 py-1 text-xs hover:border-blue-400 focus:outline-none">
+                      <span v-if="commitCount(h)" class="text-gray-700 truncate">
+                        {{ commitCount(h) }}개 커밋 ({{ shortHashes(h) }})
+                      </span>
+                      <span v-else class="text-gray-400">{{ gitCommits.length ? '커밋 선택' : '커밋 없음' }}</span>
+                      <span class="text-gray-400">▾</span>
+                    </button>
+                    <div v-if="commitPickerOpen[h.id]"
+                      class="absolute z-20 left-3 right-3 mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-64 overflow-auto">
+                      <div v-if="!gitCommits.length" class="px-3 py-3 text-xs text-gray-400">커밋이 없습니다.</div>
+                      <label v-for="c in gitCommits" :key="c.hash"
+                        class="flex items-start gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" class="mt-0.5 w-3.5 h-3.5 flex-shrink-0"
+                          :checked="isCommitSelected(h, c.hash)" @change="toggleCommit(h, c.hash)" />
+                        <span class="min-w-0">
+                          <span class="font-mono text-blue-600">{{ c.hash.slice(0, 7) }}</span>
+                          <span class="text-gray-600"> · {{ c.message }}</span>
+                        </span>
+                      </label>
+                    </div>
                   </td>
                   <!-- 사이드이펙트 검토 (git 커밋 연동 시 활성화) -->
                   <td class="py-2 px-3 text-center" @click.stop>
                     <button @click="runRowSideEffect(h)"
-                      :disabled="!h.gitCommitHash || sideEffectLoading[h.id]"
+                      :disabled="!commitCount(h) || sideEffectLoading[h.id]"
                       class="text-xs px-2 py-1 rounded border disabled:opacity-40 disabled:cursor-not-allowed"
-                      :class="h.gitCommitHash ? 'text-blue-600 border-blue-200 hover:bg-blue-50' : 'text-gray-400 border-gray-200'"
-                      :title="h.gitCommitHash ? '연동된 커밋으로 사이드이펙트 검토' : 'git 커밋을 먼저 연동하세요'">
+                      :class="commitCount(h) ? 'text-blue-600 border-blue-200 hover:bg-blue-50' : 'text-gray-400 border-gray-200'"
+                      :title="commitCount(h) ? '연동된 커밋으로 사이드이펙트 검토' : 'git 커밋을 먼저 연동하세요'">
                       {{ sideEffectLoading[h.id] ? '검토 중...' : '🔍 검토' }}
                     </button>
                   </td>
@@ -223,7 +237,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   generateReleasePlan, importReleasePlans, getReleasePlans, getReleaseHistories,
@@ -265,6 +279,7 @@ const loadingHistories = reactive({})
 // git 커밋 연동
 const gitCommits = ref([])
 const sideEffectLoading = reactive({})
+const commitPickerOpen = reactive({})
 
 const pageNumbers = computed(() => {
   const windowSize = 5
@@ -334,14 +349,22 @@ const loadGitCommits = async () => {
   }
 }
 
-// SR 행에 git 커밋 연동 (빈 값이면 연동 해제)
-const linkCommit = async (h, hash) => {
-  const commit = gitCommits.value.find(c => c.hash === hash)
+// --- git 커밋 다중 선택 ---
+const selectedHashes = (h) => h.gitCommitHashes || []
+const commitCount = (h) => selectedHashes(h).length
+const isCommitSelected = (h, hash) => selectedHashes(h).includes(hash)
+const shortHashes = (h) => selectedHashes(h).map(x => x.slice(0, 7)).join(', ')
+
+const toggleCommitPicker = (id) => { commitPickerOpen[id] = !commitPickerOpen[id] }
+
+// 커밋 체크/해제 후 연동 저장 (선택 해시 전체를 콤마로 보냄)
+const toggleCommit = async (h, hash) => {
+  const current = selectedHashes(h)
+  const next = current.includes(hash)
+    ? current.filter(x => x !== hash)
+    : [...current, hash]
   try {
-    const res = await updateHistoryGitCommit(h.id, {
-      commitHash: hash || '',
-      commitMessage: commit ? commit.message : '',
-    })
+    const res = await updateHistoryGitCommit(h.id, { commitHashes: next.join(',') })
     Object.assign(h, res.data)
   } catch (e) {
     error.value = 'git 커밋 연동 실패'
@@ -350,7 +373,7 @@ const linkCommit = async (h, hash) => {
 
 // 연동된 커밋 기준 사이드이펙트 검토 → 보고서 다운로드
 const runRowSideEffect = async (h) => {
-  if (!h.gitCommitHash) return
+  if (!commitCount(h)) return
   sideEffectLoading[h.id] = true
   error.value = ''
   try {
@@ -401,9 +424,19 @@ const goPage = (n) => {
   loadPlans()
 }
 
+// 셀 바깥 클릭 시 열린 커밋 선택창을 모두 닫는다 (셀에는 @click.stop 적용됨)
+const closeAllCommitPickers = () => {
+  Object.keys(commitPickerOpen).forEach(k => { commitPickerOpen[k] = false })
+}
+
 onMounted(() => {
   loadPlans()
   loadGitCommits()
+  document.addEventListener('click', closeAllCommitPickers)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeAllCommitPickers)
 })
 
 const generatePlan = async () => {

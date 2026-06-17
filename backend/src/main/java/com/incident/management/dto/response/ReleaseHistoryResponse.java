@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -23,8 +24,8 @@ public class ReleaseHistoryResponse {
     private String note;
     private Boolean finalConfirmed;
     private String gitSystem;
-    private String gitCommitHash;
-    private String gitCommitMessage;
+    /** 연동된 git 커밋 해시 목록 (여러 개 선택 가능) */
+    private List<String> gitCommitHashes;
     /** 이 SR(반영 이력)에 장애가 등록되어 있는지 여부 */
     private Boolean incidentRegistered;
     private LocalDateTime createdAt;
