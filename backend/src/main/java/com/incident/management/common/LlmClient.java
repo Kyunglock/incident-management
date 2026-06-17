@@ -25,7 +25,7 @@ public class LlmClient {
     public LlmClient(
             WebClient webClient,
             @Value("${ai.llm.url:https://kwaklabs.com/api/v1/kwakai/chat}") String chatUrl,
-            @Value("${ai.llm.model:qwen3-coder:latest}") String model,
+            @Value("${ai.llm.model:gemma4}") String model,
             @Value("${ai.llm.user-agent:curl/8.4.0}") String userAgent,
             ObjectMapper objectMapper) {
         // 인증서 검증을 완화한 공용 WebClient 빈을 재사용한다.

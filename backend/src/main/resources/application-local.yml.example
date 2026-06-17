@@ -11,9 +11,10 @@ spring:
 
 ai:
   llm:
-    # chat 엔드포인트 전체 URL (경로 포함)
+    # chat 엔드포인트 전체 URL (경로 포함). MLX 기반(OpenAI 호환) 서버.
     url: https://kwaklabs.com/api/v1/kwakai/chat
-    model: qwen3-coder:latest
+    # MLX 서버의 모델 식별자. 서버에 등록된 정확한 이름으로 맞춰야 한다.
+    model: gemma4
 
 # git 저장소 경로 (커밋 매핑용). 시스템별로 경로를 분기한다.
 git:
