@@ -139,7 +139,14 @@
         <!-- 펼친 영역: 반영 이력 목록 -->
         <div v-if="expanded[p.id]" class="border-t bg-gray-50/50 px-5 py-4">
           <div class="flex items-center justify-between mb-3">
-            <h4 class="text-sm font-semibold text-gray-600">반영 이력 (SR 단위)</h4>
+            <div class="flex items-center gap-3">
+              <h4 class="text-sm font-semibold text-gray-600">반영 이력 (SR 단위)</h4>
+              <label class="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
+                <input type="checkbox" v-model="dedupeSimilar" class="w-3.5 h-3.5" />
+                비슷한 작업내용 숨기기
+                <span v-if="hiddenCount(p.id)" class="text-gray-400">({{ hiddenCount(p.id) }}건 숨김)</span>
+              </label>
+            </div>
             <div class="flex gap-2">
               <router-link :to="`/release-plans/${p.id}`" class="text-xs text-blue-600 hover:underline">⚙ 사이드이펙트/취약점 분석</router-link>
               <button v-if="p.docPath" @click="downloadDoc(p.docPath)" class="text-xs text-blue-600 hover:underline">⬇ docx 다운로드</button>
@@ -165,7 +172,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(h, idx) in histories[p.id]" :key="h.id" class="border-b last:border-b-0 hover:bg-gray-50">
+                <tr v-for="(h, idx) in visibleHistories(p.id)" :key="h.id" class="border-b last:border-b-0 hover:bg-gray-50">
                   <td class="py-2 px-3 text-gray-400">{{ idx + 1 }}</td>
                   <td class="py-2 px-3">
                     <input v-model="h.srNumber" type="text" placeholder="SR 입력"
@@ -281,6 +288,10 @@ const gitCommits = ref([])
 const sideEffectLoading = reactive({})
 const commitPickerOpen = reactive({})
 
+// 작업내용이 동일/유사한 반영 이력 숨기기 (기본 켜짐)
+const dedupeSimilar = ref(true)
+const SIMILARITY_THRESHOLD = 0.8
+
 const pageNumbers = computed(() => {
   const windowSize = 5
   let start = Math.max(0, page.value - Math.floor(windowSize / 2))
@@ -339,6 +350,55 @@ const toggle = (planId) => {
 }
 
 const goHistory = (id) => router.push(`/release-histories/${id}`)
+
+// --- 작업내용 유사도 기반 중복 제거 ---
+const normalizeWork = (s) => (s || '')
+  .toLowerCase()
+  .replace(/\s+/g, '')
+  .replace(/[.,\-_/()[\]{}'"]/g, '')
+
+// 레벤슈타인 거리
+const levenshtein = (a, b) => {
+  if (a === b) return 0
+  const m = a.length, n = b.length
+  if (m === 0) return n
+  if (n === 0) return m
+  let prev = Array.from({ length: n + 1 }, (_, i) => i)
+  for (let i = 1; i <= m; i++) {
+    const cur = [i]
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      cur[j] = Math.min(cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+    }
+    prev = cur
+  }
+  return prev[n]
+}
+
+// 작업내용이 동일하거나 유사한지 (빈 값은 항상 표시되도록 유사하지 않게 처리)
+const isSimilarWork = (a, b) => {
+  const na = normalizeWork(a), nb = normalizeWork(b)
+  if (!na || !nb) return false
+  if (na === nb) return true
+  const maxLen = Math.max(na.length, nb.length)
+  return (1 - levenshtein(na, nb) / maxLen) >= SIMILARITY_THRESHOLD
+}
+
+// 작업내용이 동일/유사한 행은 첫 번째만 남기고 제외
+const visibleHistories = (planId) => {
+  const list = histories[planId] || []
+  if (!dedupeSimilar.value) return list
+  const kept = []
+  for (const h of list) {
+    if (!kept.some(k => isSimilarWork(k.workContent, h.workContent))) kept.push(h)
+  }
+  return kept
+}
+
+const hiddenCount = (planId) => {
+  const total = (histories[planId] || []).length
+  return total - visibleHistories(planId).length
+}
 
 const loadGitCommits = async () => {
   try {
