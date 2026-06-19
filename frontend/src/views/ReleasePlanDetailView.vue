@@ -53,9 +53,12 @@
           <div>
             <h4 class="text-sm font-semibold text-gray-600 mb-2">분석 결과</h4>
             <div v-if="phase2Results.length" class="space-y-2">
-              <div v-for="r in phase2Results" :key="r.type" class="flex items-center justify-between bg-gray-50 rounded p-2 text-sm">
-                <span class="text-gray-600">{{ r.type }}</span>
-                <button @click="downloadDoc(r.docPath)" class="text-blue-600 hover:underline text-xs">⬇ 다운로드</button>
+              <div v-for="(r, i) in phase2Results" :key="i" class="bg-gray-50 rounded p-2 text-sm">
+                <div class="flex items-center justify-between">
+                  <span class="text-gray-600">{{ r.type }}</span>
+                  <button v-if="r.docPath" @click="downloadDoc(r.docPath)" class="text-blue-600 hover:underline text-xs">⬇ 다운로드</button>
+                </div>
+                <div v-if="r.content" class="mt-2 whitespace-pre-wrap break-words text-gray-700 text-xs leading-relaxed">{{ r.content }}</div>
               </div>
             </div>
             <p v-else class="text-gray-400 text-sm">아직 분석 결과가 없습니다.</p>
@@ -89,7 +92,7 @@ const gitSystems = ref([])
 const gitProjects = ref([])
 
 const breadcrumbItems = computed(() => [
-  { label: '반영 계획서 목록', to: '/' },
+  { label: '작업 계획서 목록', to: '/' },
   { label: plan.value ? plan.value.title : `#${planId}`, to: null },
 ])
 
@@ -131,7 +134,7 @@ const runSideEffect = async () => {
   loading.sideEffect = true
   try {
     const res = await analyzeSideEffect(planId, gitForm)
-    phase2Results.value.push({ type: '사이드이펙트 보고서', docPath: res.data.docPath })
+    phase2Results.value.push({ type: '사이드이펙트 분석', content: res.data.content })
   } catch (e) {
     error.value = '사이드이펙트 분석 실패'
   } finally {

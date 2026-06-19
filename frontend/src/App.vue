@@ -3,11 +3,12 @@
     <aside class="w-56 bg-gray-900 text-gray-200 flex flex-col shrink-0">
       <div class="px-5 py-5 border-b border-gray-800">
         <router-link to="/" class="font-bold text-white text-base leading-tight block">
-          반영계획서<br />자동 생성 시스템
+          작업계획서<br />자동 생성 시스템
         </router-link>
       </div>
       <nav class="flex-1 px-3 py-4 space-y-1">
-        <router-link to="/" class="side-link">📄 반영 계획서</router-link>
+        <router-link to="/" class="side-link">📄 작업 계획서</router-link>
+        <router-link to="/incidents" class="side-link">🚨 장애 관리</router-link>
       </nav>
       <div class="px-5 py-4 text-xs text-gray-500 border-t border-gray-800">v0.1</div>
     </aside>
@@ -27,7 +28,7 @@
 .side-link {
   @apply block px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors;
 }
-.side-link.router-link-active {
+.side-link.router-link-exact-active {
   @apply bg-gray-800 text-white font-medium;
 }
 </style>

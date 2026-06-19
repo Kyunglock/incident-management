@@ -36,7 +36,7 @@ public class ReleaseController {
     }
 
     /**
-     * 다중 시트 엑셀 업로드 → 시트(날짜)별 반영 계획서 + SR 단위 반영 이력 일괄 생성.
+     * 다중 시트 엑셀 업로드 → 시트(날짜)별 작업 계획서 + SR 단위 반영 이력 일괄 생성.
      * 이미 같은 날짜(2026-MM-DD)가 존재하면 해당 시트는 무시한다.
      */
     @PostMapping("/import")
@@ -59,7 +59,13 @@ public class ReleaseController {
         return ResponseEntity.ok(releasePlanService.getById(id));
     }
 
-    /** 반영 계획서와 하위(반영 이력/장애/장애 분석)를 함께 삭제한다. */
+    /** 반영이력 기반 작업계획서 '작업내용' 텍스트 생성 (한글파일 붙여넣기용) */
+    @PostMapping("/{id}/work-plan")
+    public ResponseEntity<Map<String, String>> generateWorkPlan(@PathVariable Long id) {
+        return ResponseEntity.ok(Map.of("content", releasePlanService.generateWorkPlanContent(id)));
+    }
+
+    /** 작업 계획서와 하위(반영 이력/장애/장애 분석)를 함께 삭제한다. */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         releasePlanService.deletePlan(id);
@@ -73,8 +79,9 @@ public class ReleaseController {
             @RequestParam(required = false) String project,
             @RequestParam(required = false) String commitFrom,
             @RequestParam(required = false) String commitTo) {
-        String docPath = sideEffectService.analyze(system, project, commitFrom, commitTo, id);
-        return ResponseEntity.ok(Map.of("docPath", docPath));
+        SideEffectService.AnalysisResult result =
+                sideEffectService.analyze(system, project, commitFrom, commitTo, "RELEASE_PLAN", id);
+        return ResponseEntity.ok(Map.of("content", result.content()));
     }
 
     @PostMapping("/{id}/vuln-check")

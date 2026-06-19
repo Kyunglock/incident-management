@@ -48,9 +48,6 @@ public class GitLabApiProvider implements GitProvider {
 
     @Override
     public List<GitCommit> listCommits(String system, int count) {
-        if (tokenMissing()) {
-            return List.of();
-        }
         List<String> projects = gitProperties.getGitlab().resolveProjects(system);
         if (projects.isEmpty()) {
             log.warn("GitLab system 에 매핑된 프로젝트가 없습니다. system={}", system);
@@ -59,10 +56,16 @@ public class GitLabApiProvider implements GitProvider {
         String branch = gitProperties.getGitlab().getBranch();
         List<Dated> collected = new ArrayList<>();
         for (String project : projects) {
+            String token = tokenFor(project);
+            if (token == null) {
+                continue;
+            }
+            String url = apiBase(project) + "/repository/commits?per_page=" + count
+                    + (branch != null && !branch.isBlank() ? "&ref_name=" + branch : "");
             try {
-                String url = apiBase(project) + "/repository/commits?per_page=" + count
-                        + (branch != null && !branch.isBlank() ? "&ref_name=" + branch : "");
-                JsonNode arr = getJson(url);
+                JsonNode arr = getJson(url, token);
+                int n = (arr != null && arr.isArray()) ? arr.size() : -1;
+                log.info("GitLab 커밋 조회 - project={} branch={} 건수={} url={}", project, branch, n, url);
                 if (arr == null || !arr.isArray()) {
                     continue;
                 }
@@ -76,14 +79,17 @@ public class GitLabApiProvider implements GitProvider {
                                     formatDate(committedDate),
                                     node.path("title").asText(""))));
                 }
+            } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+                log.warn("GitLab 커밋 조회 실패(HTTP). project={} status={} body={} url={}",
+                        project, e.getStatusCode(), e.getResponseBodyAsString(), url);
             } catch (Exception e) {
-                log.warn("GitLab 커밋 조회 실패. project={}", project, e);
+                log.warn("GitLab 커밋 조회 실패. project={} url={}", project, url, e);
             }
         }
-        // 여러 프로젝트의 커밋을 최신순으로 병합 후 count 로 제한.
+        // 프로젝트마다 count 개씩 가져온 뒤 최신순으로 병합한다.
+        // (여기서 다시 count 로 자르면 특정 저장소가 통째로 누락될 수 있어 자르지 않는다.)
         return collected.stream()
                 .sorted(Comparator.comparing((Dated d) -> d.instant).reversed())
-                .limit(count)
                 .map(d -> d.commit)
                 .toList();
     }
@@ -100,16 +106,20 @@ public class GitLabApiProvider implements GitProvider {
 
     @Override
     public String commitDiff(String system, String project, String hash) {
-        if (tokenMissing() || hash == null || hash.isBlank()) {
+        if (hash == null || hash.isBlank()) {
             return "";
         }
         String proj = resolveProject(system, project);
         if (proj == null) {
             return "";
         }
+        String token = tokenFor(proj);
+        if (token == null) {
+            return "";
+        }
         try {
             JsonNode arr = getJson(apiBase(proj) + "/repository/commits/"
-                    + URLEncoder.encode(hash, StandardCharsets.UTF_8) + "/diff");
+                    + URLEncoder.encode(hash, StandardCharsets.UTF_8) + "/diff", token);
             return joinDiffs(arr);
         } catch (Exception e) {
             log.warn("GitLab 커밋 diff 조회 실패. project={} hash={}", proj, hash, e);
@@ -119,18 +129,22 @@ public class GitLabApiProvider implements GitProvider {
 
     @Override
     public String rangeDiff(String system, String project, String from, String to) {
-        if (tokenMissing() || from == null || from.isBlank() || to == null || to.isBlank()) {
+        if (from == null || from.isBlank() || to == null || to.isBlank()) {
             return "";
         }
         String proj = resolveProject(system, project);
         if (proj == null) {
             return "";
         }
+        String token = tokenFor(proj);
+        if (token == null) {
+            return "";
+        }
         try {
             String url = apiBase(proj) + "/repository/compare?from="
                     + URLEncoder.encode(from, StandardCharsets.UTF_8)
                     + "&to=" + URLEncoder.encode(to, StandardCharsets.UTF_8);
-            JsonNode root = getJson(url);
+            JsonNode root = getJson(url, token);
             return root == null ? "" : joinDiffs(root.path("diffs"));
         } catch (Exception e) {
             log.warn("GitLab 범위 diff 조회 실패. project={} {}..{}", proj, from, to, e);
@@ -149,13 +163,14 @@ public class GitLabApiProvider implements GitProvider {
         return projects.isEmpty() ? null : projects.get(0);
     }
 
-    private boolean tokenMissing() {
-        String token = gitProperties.getGitlab().getToken();
+    /** 프로젝트별 토큰을 조회. 없으면 warn 후 null (해당 프로젝트는 건너뜀). */
+    private String tokenFor(String project) {
+        String token = gitProperties.getGitlab().resolveToken(project);
         if (token == null || token.isBlank()) {
-            log.warn("GITLAB_TOKEN 이 설정되지 않아 GitLab 연동을 건너뜁니다.");
-            return true;
+            log.warn("GitLab 토큰이 설정되지 않아 프로젝트를 건너뜁니다. project={}", project);
+            return null;
         }
-        return false;
+        return token;
     }
 
     private String apiBase(String project) {
@@ -166,10 +181,10 @@ public class GitLabApiProvider implements GitProvider {
         return base + "/api/v4/projects/" + URLEncoder.encode(project, StandardCharsets.UTF_8);
     }
 
-    private JsonNode getJson(String url) throws Exception {
+    private JsonNode getJson(String url, String token) throws Exception {
         String body = webClient.get()
                 .uri(URI.create(url))
-                .header("PRIVATE-TOKEN", gitProperties.getGitlab().getToken())
+                .header("PRIVATE-TOKEN", token)
                 .retrieve()
                 .bodyToMono(String.class)
                 .block();

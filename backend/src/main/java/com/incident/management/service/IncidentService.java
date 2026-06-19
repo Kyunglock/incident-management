@@ -47,10 +47,21 @@ public class IncidentService {
                 .orElseThrow(() -> new ResourceNotFoundException("장애 이력을 찾을 수 없습니다: " + id)));
     }
 
+    /** 전역 장애 목록 (모든 SR) */
+    public List<IncidentResponse> getAll() {
+        return incidentRepository.findAllByOrderByOccurredAtDesc().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
     private IncidentResponse toResponse(Incident incident) {
+        ReleaseHistory history = incident.getReleaseHistory();
         return IncidentResponse.builder()
                 .id(incident.getId())
-                .releaseHistoryId(incident.getReleaseHistory().getId())
+                .releaseHistoryId(history.getId())
+                .srNumber(history.getSrNumber())
+                .service(history.getService())
+                .releasePlanId(history.getReleasePlan() != null ? history.getReleasePlan().getId() : null)
                 .occurredAt(incident.getOccurredAt())
                 .symptom(incident.getSymptom())
                 .createdAt(incident.getCreatedAt())

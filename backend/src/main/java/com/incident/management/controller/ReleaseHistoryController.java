@@ -2,7 +2,10 @@ package com.incident.management.controller;
 
 import com.incident.management.dto.request.CreateReleaseHistoryRequest;
 import com.incident.management.dto.response.ReleaseHistoryResponse;
+import com.incident.management.dto.response.ReleaseHistorySummaryResponse;
+import com.incident.management.dto.response.SideEffectReportResponse;
 import com.incident.management.service.ReleaseHistoryService;
+import com.incident.management.service.SideEffectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +29,12 @@ public class ReleaseHistoryController {
     @GetMapping("/api/release-plans/{planId}/histories")
     public ResponseEntity<List<ReleaseHistoryResponse>> getByPlan(@PathVariable Long planId) {
         return ResponseEntity.ok(releaseHistoryService.getByPlan(planId));
+    }
+
+    /** SR 선택용 전체 요약 목록 (장애 등록 드롭다운 등) */
+    @GetMapping("/api/release-histories")
+    public ResponseEntity<List<ReleaseHistorySummaryResponse>> getAllSummaries() {
+        return ResponseEntity.ok(releaseHistoryService.getAllSummaries());
     }
 
     @GetMapping("/api/release-histories/{id}")
@@ -57,9 +66,22 @@ public class ReleaseHistoryController {
                 releaseHistoryService.updateGitCommit(id, system, commitHashes));
     }
 
-    /** 연동된 git 커밋 기준 사이드이펙트 검토 */
+    /** 연동된 git 커밋 기준 사이드이펙트 검토 (결과 원문 + docPath 반환) */
     @PostMapping("/api/release-histories/{id}/side-effect")
     public ResponseEntity<Map<String, String>> analyzeSideEffect(@PathVariable Long id) {
-        return ResponseEntity.ok(Map.of("docPath", releaseHistoryService.analyzeSideEffect(id)));
+        SideEffectService.AnalysisResult result = releaseHistoryService.analyzeSideEffect(id);
+        return ResponseEntity.ok(Map.of("content", result.content()));
+    }
+
+    /** SR 에 연동된 사이드이펙트 검토 결과(최신) 조회 — 다시 보기용 */
+    @GetMapping("/api/release-histories/{id}/side-effect")
+    public ResponseEntity<SideEffectReportResponse> getSideEffectReport(@PathVariable Long id) {
+        return ResponseEntity.ok(releaseHistoryService.getSideEffectReport(id));
+    }
+
+    /** 작업내용 기반 테스트케이스 LLM 자동 생성 */
+    @PostMapping("/api/release-histories/{id}/test-cases")
+    public ResponseEntity<ReleaseHistoryResponse> generateTestCases(@PathVariable Long id) {
+        return ResponseEntity.ok(releaseHistoryService.generateTestCases(id));
     }
 }

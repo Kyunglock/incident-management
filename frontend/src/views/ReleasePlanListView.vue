@@ -1,15 +1,15 @@
 <template>
   <div>
-    <Breadcrumb :items="[{ label: '반영 계획서 목록', to: null }]" />
+    <Breadcrumb :items="[{ label: '작업 계획서 목록', to: null }]" />
 
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-gray-800">반영 계획서</h2>
+      <h2 class="text-2xl font-bold text-gray-800">작업 계획서</h2>
       <div class="flex gap-2">
         <button @click="showImport = !showImport" class="btn-secondary text-sm">
           {{ showImport ? '닫기' : '⬆ 엑셀 일괄 등록' }}
         </button>
         <button @click="showCreate = !showCreate" class="btn-primary text-sm">
-          {{ showCreate ? '닫기' : '+ 새 반영 계획서' }}
+          {{ showCreate ? '닫기' : '+ 새 작업 계획서' }}
         </button>
       </div>
     </div>
@@ -18,7 +18,7 @@
     <section v-if="showImport" class="card mb-6">
       <h3 class="section-title">엑셀 일괄 등록 (시트=날짜)</h3>
       <p class="text-xs text-gray-500 mb-3">
-        시트별로 반영 계획서(제목 <code>2026-MM-DD</code>)와 SR 단위 반영 이력을 생성합니다.
+        시트별로 작업 계획서(제목 <code>2026-MM-DD</code>)와 SR 단위 반영 이력을 생성합니다.
         이미 같은 날짜가 등록되어 있으면 해당 시트는 무시합니다.
       </p>
       <div class="flex items-center gap-3">
@@ -57,7 +57,7 @@
 
     <!-- 생성 폼 (접이식) -->
     <section v-if="showCreate" class="card mb-6">
-      <h3 class="section-title">새 반영 계획서 생성</h3>
+      <h3 class="section-title">새 작업 계획서 생성</h3>
       <div class="grid grid-cols-2 gap-6">
         <div class="space-y-4">
           <div>
@@ -99,7 +99,7 @@
       <div class="mt-4 flex items-center gap-3">
         <button @click="generatePlan" :disabled="!excelFile || loading" class="btn-primary">
           <span v-if="loading">생성 중...</span>
-          <span v-else>📄 반영 계획서 뼈대 생성</span>
+          <span v-else>📄 작업 계획서 뼈대 생성</span>
         </button>
         <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
       </div>
@@ -116,7 +116,7 @@
     <!-- 목록 (아코디언) -->
     <div v-if="loadingList" class="text-gray-400 text-sm py-8 text-center">불러오는 중...</div>
     <div v-else-if="plans.length === 0" class="text-gray-400 text-sm py-12 text-center border rounded">
-      {{ appliedKeyword ? '검색 결과가 없습니다.' : '반영 계획서가 없습니다.' }}
+      {{ appliedKeyword ? '검색 결과가 없습니다.' : '작업 계획서가 없습니다.' }}
     </div>
     <div v-else class="space-y-3">
       <section v-for="p in plans" :key="p.id" class="border rounded-lg bg-white overflow-hidden">
@@ -134,7 +134,7 @@
           </button>
           <button @click.stop="removePlan(p)" :disabled="deletingId === p.id"
             class="px-4 self-stretch text-sm text-gray-400 hover:text-red-600 disabled:opacity-40"
-            title="반영 계획서 삭제">
+            title="작업 계획서 삭제">
             {{ deletingId === p.id ? '삭제 중…' : '🗑' }}
           </button>
         </div>
@@ -144,14 +144,11 @@
           <div class="flex items-center justify-between mb-3">
             <h4 class="text-sm font-semibold text-gray-600">반영 이력 (SR 단위)</h4>
             <div class="flex items-center gap-2">
-              <label v-if="gitSystems.length" class="flex items-center gap-1 text-xs text-gray-500">
-                커밋 시스템
-                <select v-model="selectedSystem" @change="loadGitCommits"
-                  class="border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:border-blue-400 focus:outline-none">
-                  <option v-for="s in gitSystems" :key="s" :value="s">{{ s }}</option>
-                </select>
-              </label>
               <router-link :to="`/release-plans/${p.id}`" class="text-xs text-blue-600 hover:underline">⚙ 사이드이펙트/취약점 분석</router-link>
+              <button @click="generateWorkPlanDoc(p)" :disabled="workPlanLoading[p.id]"
+                class="text-xs text-blue-600 hover:underline disabled:opacity-50">
+                {{ workPlanLoading[p.id] ? '생성 중...' : '📋 작업내용 생성' }}
+              </button>
               <button v-if="p.docPath" @click="downloadDoc(p.docPath)" class="text-xs text-blue-600 hover:underline">⬇ docx 다운로드</button>
             </div>
           </div>
@@ -168,8 +165,9 @@
                   <th class="py-2 px-3 font-medium">작업내용</th>
                   <th class="py-2 px-3 font-medium">요청자</th>
                   <th class="py-2 px-3 font-medium">작업자</th>
-                  <th class="py-2 px-3 font-medium w-52">Git 커밋</th>
+                  <th class="py-2 px-3 font-medium w-80">Git 커밋</th>
                   <th class="py-2 px-3 font-medium text-center">사이드이펙트</th>
+                  <th class="py-2 px-3 font-medium text-center">테스트케이스</th>
                   <th class="py-2 px-3 font-medium text-center">장애</th>
                   <th class="py-2 px-3 font-medium">비고</th>
                 </tr>
@@ -183,43 +181,54 @@
                       @click.stop @keyup.enter="saveSr(h)" @blur="saveSr(h)" />
                   </td>
                   <td class="py-2 px-3 text-gray-700 cursor-pointer" @click="goHistory(h.id)">{{ h.service || '-' }}</td>
-                  <td class="py-2 px-3 text-gray-700 cursor-pointer" @click="goHistory(h.id)">{{ h.workContent || '-' }}</td>
+                  <td class="py-2 px-3 text-gray-700 cursor-pointer" @click="goHistory(h.id)">
+                    <div class="max-w-[28rem] truncate" :title="h.workContent">{{ h.workContent || '-' }}</div>
+                  </td>
                   <td class="py-2 px-3 text-gray-500 cursor-pointer" @click="goHistory(h.id)">{{ h.requester || '-' }}</td>
                   <td class="py-2 px-3 text-gray-500 cursor-pointer" @click="goHistory(h.id)">{{ h.worker || '-' }}</td>
-                  <!-- Git 커밋 연동 (다중 선택) -->
-                  <td class="py-2 px-3 relative" @click.stop>
-                    <button @click="toggleCommitPicker(h.id)"
+                  <!-- Git 커밋 연동 (서비스로 시스템 매핑) -->
+                  <td class="py-2 px-3" @click.stop>
+                    <button v-if="serviceHasGit(h)" @click="openPicker($event, h)"
                       class="w-full flex items-center justify-between gap-1 border border-gray-200 rounded px-2 py-1 text-xs hover:border-blue-400 focus:outline-none">
                       <span v-if="commitCount(h)" class="text-gray-700 truncate">
-                        {{ commitCount(h) }}개 커밋 ({{ shortHashes(h) }})
+                        {{ commitCount(h) }}개 커밋 선택됨
                       </span>
-                      <span v-else class="text-gray-400">{{ gitCommits.length ? '커밋 선택' : '커밋 없음' }}</span>
-                      <span class="text-gray-400">▾</span>
+                      <span v-else class="text-gray-400">커밋 선택</span>
+                      <span class="text-gray-400 flex-shrink-0">▾</span>
                     </button>
-                    <div v-if="commitPickerOpen[h.id]"
-                      class="absolute z-20 left-3 right-3 mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-64 overflow-auto">
-                      <div v-if="!gitCommits.length" class="px-3 py-3 text-xs text-gray-400">커밋이 없습니다.</div>
-                      <label v-for="c in gitCommits" :key="commitToken(c)"
-                        class="flex items-start gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer">
-                        <input type="checkbox" class="mt-0.5 w-3.5 h-3.5 flex-shrink-0"
-                          :checked="isCommitSelected(h, c)" @change="toggleCommit(h, c)" />
-                        <span class="min-w-0">
-                          <span v-if="c.project" class="text-gray-400">[{{ projLabel(c.project) }}] </span>
-                          <span class="font-mono text-blue-600">{{ c.hash.slice(0, 7) }}</span>
-                          <span class="text-gray-600"> · {{ c.message }}</span>
-                        </span>
-                      </label>
-                    </div>
+                    <span v-else class="text-gray-300 text-xs">-</span>
                   </td>
                   <!-- 사이드이펙트 검토 (git 커밋 연동 시 활성화) -->
                   <td class="py-2 px-3 text-center" @click.stop>
-                    <button @click="runRowSideEffect(h)"
-                      :disabled="!commitCount(h) || sideEffectLoading[h.id]"
-                      class="text-xs px-2 py-1 rounded border disabled:opacity-40 disabled:cursor-not-allowed"
-                      :class="commitCount(h) ? 'text-blue-600 border-blue-200 hover:bg-blue-50' : 'text-gray-400 border-gray-200'"
-                      :title="commitCount(h) ? '연동된 커밋으로 사이드이펙트 검토' : 'git 커밋을 먼저 연동하세요'">
-                      {{ sideEffectLoading[h.id] ? '검토 중...' : '🔍 검토' }}
-                    </button>
+                    <div class="flex items-center justify-center gap-1">
+                      <button @click="runRowSideEffect(h)"
+                        :disabled="!commitCount(h) || sideEffectLoading[h.id]"
+                        class="text-xs px-2 py-1 rounded border disabled:opacity-40 disabled:cursor-not-allowed"
+                        :class="commitCount(h) ? 'text-blue-600 border-blue-200 hover:bg-blue-50' : 'text-gray-400 border-gray-200'"
+                        :title="commitCount(h) ? '연동된 커밋으로 사이드이펙트 검토' : 'git 커밋을 먼저 연동하세요'">
+                        {{ sideEffectLoading[h.id] ? '검토 중...' : '🔍 검토' }}
+                      </button>
+                      <button v-if="h.hasSideEffectReport" @click="openReportForHistory(h)"
+                        class="text-xs px-2 py-1 rounded border text-gray-600 border-gray-200 hover:bg-gray-50"
+                        title="저장된 검토 결과 보기">
+                        📄 보기
+                      </button>
+                    </div>
+                  </td>
+                  <!-- 테스트케이스 (LLM 자동 생성) -->
+                  <td class="py-2 px-3 text-center" @click.stop>
+                    <div class="flex items-center justify-center gap-1">
+                      <button @click="genTestCases(h)" :disabled="testCaseLoading[h.id]"
+                        class="text-xs px-2 py-1 rounded border text-blue-600 border-blue-200 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="작업내용 기반 테스트케이스 자동 생성">
+                        {{ testCaseLoading[h.id] ? '생성 중...' : '🧪 생성' }}
+                      </button>
+                      <button v-if="h.testCase" @click="openTestCase(h)"
+                        class="text-xs px-2 py-1 rounded border text-gray-600 border-gray-200 hover:bg-gray-50"
+                        title="생성된 테스트케이스 보기">
+                        📄 보기
+                      </button>
+                    </div>
                   </td>
                   <!-- 장애 등록 여부 -->
                   <td class="py-2 px-3 text-center cursor-pointer" @click="goHistory(h.id)">
@@ -244,6 +253,126 @@
         @click="goPage(n - 1)">{{ n }}</button>
       <button class="page-btn" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
     </div>
+
+    <!-- Git 커밋 선택 패널 (테이블 overflow 에 잘리지 않도록 body 로 teleport) -->
+    <Teleport to="body">
+      <div v-if="picker.h" @click.stop
+        class="fixed z-50 bg-white border border-gray-200 rounded shadow-lg max-h-80 overflow-y-auto overflow-x-hidden text-xs"
+        :style="{ top: picker.top + 'px', left: picker.left + 'px', width: picker.width + 'px' }">
+        <!-- 상단 고정: 작업내용 기준 추천 자동선택 -->
+        <div class="sticky top-0 bg-gray-50 border-b px-3 py-2 flex items-center justify-between gap-2">
+          <span class="text-gray-400 truncate">작업내용과 유사한 커밋을 위에 추천</span>
+          <button @click="autoMapRecommended" :disabled="!recommendedCount"
+            class="flex-shrink-0 text-xs px-2 py-0.5 rounded border text-blue-600 border-blue-200 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed">
+            🎯 추천 {{ recommendedCount }}건 자동선택
+          </button>
+        </div>
+        <div v-if="picker.h && commitsLoading[serviceToSystem(picker.h)]" class="px-3 py-3 text-gray-400">불러오는 중...</div>
+        <div v-else-if="!rankedCommits.length" class="px-3 py-3 text-gray-400">커밋이 없습니다.</div>
+        <label v-for="r in rankedCommits" :key="commitToken(r.c)"
+          class="flex items-start gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer"
+          :class="{ 'bg-amber-50/40': isRecItem(r) }">
+          <input type="checkbox" class="mt-0.5 w-3.5 h-3.5 flex-shrink-0"
+            :checked="isCommitSelected(picker.h, r.c)" @change="toggleCommit(picker.h, r.c)" />
+          <span v-if="isRecItem(r)"
+            class="mt-px flex-shrink-0 text-amber-700 bg-amber-100 rounded px-1">추천</span>
+          <span v-if="r.c.project"
+            class="mt-px flex-shrink-0 text-gray-500 bg-gray-100 rounded px-1">{{ projLabel(r.c.project) }}</span>
+          <span class="text-gray-700 break-words">{{ r.c.message }}</span>
+        </label>
+      </div>
+    </Teleport>
+
+    <!-- 작업내용 생성 결과 모달 (한글파일 붙여넣기용) -->
+    <Teleport to="body">
+      <div v-if="workPlanModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        @click="workPlanModal.open = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" @click.stop>
+          <div class="flex items-center justify-between px-5 py-3 border-b">
+            <h3 class="font-semibold text-gray-800">작업내용 (한글파일에 붙여넣기)</h3>
+            <button @click="workPlanModal.open = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+          </div>
+          <div class="px-5 py-4 overflow-auto">
+            <textarea :value="workPlanModal.content" readonly rows="18"
+              class="w-full border border-gray-200 rounded p-3 text-xs font-mono whitespace-pre leading-relaxed focus:outline-none"></textarea>
+          </div>
+          <div class="flex justify-end gap-2 px-5 py-3 border-t">
+            <button @click="copyWorkPlan" class="btn-secondary text-sm">
+              {{ workPlanModal.copied ? '✓ 복사됨' : '📋 복사' }}
+            </button>
+            <button @click="workPlanModal.open = false" class="btn-primary text-sm">닫기</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 테스트케이스 모달 -->
+    <Teleport to="body">
+      <div v-if="testCaseModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        @click="testCaseModal.open = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" @click.stop>
+          <div class="flex items-center justify-between px-5 py-3 border-b">
+            <h3 class="font-semibold text-gray-800">테스트케이스</h3>
+            <button @click="testCaseModal.open = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+          </div>
+          <div class="px-5 py-4 overflow-auto">
+            <div class="whitespace-pre-wrap break-words text-gray-700 text-sm leading-relaxed">{{ testCaseModal.content }}</div>
+          </div>
+          <div class="flex justify-end gap-2 px-5 py-3 border-t">
+            <button @click="copyTestCase" class="btn-secondary text-sm">
+              {{ testCaseModal.copied ? '✓ 복사됨' : '📋 복사' }}
+            </button>
+            <button @click="testCaseModal.open = false" class="btn-primary text-sm">닫기</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 사이드이펙트 검토 결과 모달 -->
+    <Teleport to="body">
+      <div v-if="report.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        @click="closeReport">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" @click.stop>
+          <div class="flex items-center justify-between px-5 py-3 border-b">
+            <h3 class="font-semibold text-gray-800">사이드이펙트 검토 결과</h3>
+            <button @click="closeReport" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+          </div>
+          <div class="px-5 py-4 text-sm overflow-auto">
+            <div v-if="report.loading" class="text-gray-400 py-10 text-center">불러오는 중...</div>
+            <div v-else-if="report.error" class="text-red-600 py-10 text-center">{{ report.error }}</div>
+            <template v-else-if="report.data">
+              <div v-if="report.data.recommendation" class="mb-4">
+                <h4 class="font-semibold text-gray-700 mb-1">권고 사항</h4>
+                <p class="text-gray-600 whitespace-pre-wrap">{{ report.data.recommendation }}</p>
+              </div>
+              <div v-if="report.data.affected_modules && report.data.affected_modules.length" class="mb-4">
+                <h4 class="font-semibold text-gray-700 mb-1">영향 모듈</h4>
+                <div class="flex flex-wrap gap-1">
+                  <span v-for="m in report.data.affected_modules" :key="m"
+                    class="bg-gray-100 text-gray-600 rounded px-2 py-0.5 text-xs">{{ m }}</span>
+                </div>
+              </div>
+              <div v-if="report.data.risk_items && report.data.risk_items.length">
+                <h4 class="font-semibold text-gray-700 mb-1">위험 항목</h4>
+                <ul class="space-y-2">
+                  <li v-for="(r, i) in report.data.risk_items" :key="i" class="border rounded p-2">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-xs px-1.5 py-0.5 rounded font-medium" :class="riskClass(r.level)">{{ r.level }}</span>
+                      <span class="font-medium text-gray-700">{{ r.module }}</span>
+                    </div>
+                    <p class="text-gray-600 whitespace-pre-wrap">{{ r.risk }}</p>
+                  </li>
+                </ul>
+              </div>
+            </template>
+            <div v-else class="whitespace-pre-wrap break-words text-gray-700 leading-relaxed">{{ report.raw }}</div>
+          </div>
+          <div class="flex justify-end gap-2 px-5 py-3 border-t">
+            <button @click="closeReport" class="btn-primary text-sm">닫기</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -252,8 +381,9 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   generateReleasePlan, importReleasePlans, getReleasePlans, getReleaseHistories,
-  updateSrNumber, downloadDocument, deleteReleasePlan,
+  updateSrNumber, downloadDocument, deleteReleasePlan, generateWorkPlan,
   getGitCommits, getGitSystems, updateHistoryGitCommit, analyzeHistorySideEffect,
+  getHistorySideEffect, generateTestCases,
 } from '../services/api.js'
 import Breadcrumb from '../components/Breadcrumb.vue'
 
@@ -287,12 +417,14 @@ const expanded = reactive({})
 const histories = reactive({})
 const loadingHistories = reactive({})
 
-// git 커밋 연동
+// git 커밋 연동: SR 의 서비스로 git 시스템을 매핑(서비스명 == 설정된 시스템 키).
 const gitSystems = ref([])
-const selectedSystem = ref('')
-const gitCommits = ref([])
+const commitsBySystem = reactive({})   // 시스템(=서비스) → 커밋 목록 (지연 로딩 캐시)
+const commitsLoading = reactive({})    // 시스템 → 로딩 여부
 const sideEffectLoading = reactive({})
-const commitPickerOpen = reactive({})
+// 커밋 선택 패널: 한 번에 하나만 열림. body 로 teleport 되며 화면 좌표로 위치를 잡는다.
+const picker = reactive({ h: null, top: 0, left: 0, width: 0 })
+let pickerTriggerEl = null   // 패널을 띄운 버튼 (스크롤 시 위치 재계산용)
 
 const pageNumbers = computed(() => {
   const windowSize = 5
@@ -357,40 +489,148 @@ const loadGitSystems = async () => {
   try {
     const res = await getGitSystems()
     gitSystems.value = res.data || []
-    if (!selectedSystem.value && gitSystems.value.length) {
-      selectedSystem.value = gitSystems.value[0]
-    }
   } catch (e) {
     gitSystems.value = []
   }
 }
 
-const loadGitCommits = async () => {
+// SR 의 서비스명을 설정된 git 시스템 키와 매핑 (NFC + 공백 무시로 비교, 정식 시스템 키 반환)
+const normName = (s) => (s || '').normalize('NFC').replace(/\s/g, '')
+const serviceToSystem = (h) => {
+  const svc = normName(h && h.service)
+  if (!svc) return ''
+  return gitSystems.value.find(s => normName(s) === svc) || ''
+}
+const serviceHasGit = (h) => !!serviceToSystem(h)
+
+// 시스템(=서비스)별 커밋을 지연 로딩 후 캐시
+const loadCommitsForSystem = async (system) => {
+  if (!system || commitsBySystem[system] !== undefined || commitsLoading[system]) return
+  commitsLoading[system] = true
   try {
-    const res = await getGitCommits({ system: selectedSystem.value || undefined, count: 50 })
-    gitCommits.value = res.data
+    const res = await getGitCommits({ system, count: 50 })
+    commitsBySystem[system] = res.data || []
   } catch (e) {
-    gitCommits.value = []
+    commitsBySystem[system] = []
+  } finally {
+    commitsLoading[system] = false
   }
 }
+const commitsForRow = (h) => commitsBySystem[serviceToSystem(h)] || []
 
 // --- git 커밋 다중 선택 ---
 // 저장 토큰: project 가 있으면 "project@hash", 없으면(로컬) "hash"
 const commitToken = (c) => (c.project ? `${c.project}@${c.hash}` : c.hash)
-const tokenHash = (token) => { const i = token.lastIndexOf('@'); return i < 0 ? token : token.slice(i + 1) }
-const tokenProject = (token) => { const i = token.lastIndexOf('@'); return i < 0 ? '' : token.slice(0, i) }
 const projLabel = (project) => (project ? project.split('/').pop() : '')
 
 const selectedHashes = (h) => h.gitCommitHashes || []
 const commitCount = (h) => selectedHashes(h).length
 const isCommitSelected = (h, c) => selectedHashes(h).includes(commitToken(c))
-const shortHashes = (h) => selectedHashes(h).map(t => {
-  const p = tokenProject(t)
-  const short = tokenHash(t).slice(0, 7)
-  return p ? `[${projLabel(p)}] ${short}` : short
-}).join(', ')
 
-const toggleCommitPicker = (id) => { commitPickerOpen[id] = !commitPickerOpen[id] }
+// 커밋 메시지 앞쪽 [이름] 추출 (예: "[김현지] update ..." → 김현지)
+const commitWorker = (c) => {
+  const m = (c.message || '').match(/^\s*\[([^\]]+)\]/)
+  return m ? m[1].trim() : ''
+}
+// 커밋의 [이름] 이 SR 작업자(콤마/슬래시로 여러 명 가능)와 일치하는지
+const workerMatches = (h, c) => {
+  const cw = commitWorker(c)
+  if (!cw || !h.worker) return false
+  return h.worker.split(/[,/]/).map(s => s.trim()).filter(Boolean)
+    .some(w => w === cw || w.includes(cw) || cw.includes(w))
+}
+
+// --- 작업내용 ↔ 커밋 메시지 키워드 유사도 (인프라 불필요한 경량 매칭) ---
+const REC_THRESHOLD = 0.12   // 이 점수 이상이면 '추천'
+// 단어 + 한글 글자 bigram 집합 (한글은 띄어쓰기가 적어 bigram 으로 보완)
+const simTokens = (s) => {
+  const clean = (s || '').toLowerCase().replace(/[^0-9a-z가-힣]+/gi, ' ').trim()
+  const set = new Set()
+  for (const w of clean.split(/\s+/)) if (w.length >= 2) set.add(w)
+  const nospace = clean.replace(/\s+/g, '')
+  for (let i = 0; i < nospace.length - 1; i++) set.add(nospace.slice(i, i + 2))
+  return set
+}
+const similarity = (a, b) => {
+  const A = simTokens(a), B = simTokens(b)
+  if (!A.size || !B.size) return 0
+  let inter = 0
+  for (const t of A) if (B.has(t)) inter++
+  return inter / Math.sqrt(A.size * B.size)   // 코사인 유사
+}
+// 작업자 일치 가중치 (정렬용 종합 점수 산정). 둘 다 맞으면 위로 정렬된다.
+const WORKER_WEIGHT = 0.3
+// 작업자 일치 시 적용하는 완화된 내용 유사 기준 (작업자만으론 추천 안 됨)
+const REC_THRESHOLD_WORKER = 0.06
+// 종합 점수: 작업내용 유사도 + (작업자 일치 시 가중치) — 정렬에만 사용
+const finalScore = (r) => r.score + (r.wmatch ? WORKER_WEIGHT : 0)
+// 추천 여부: 반드시 내용 유사도가 있어야 함. 작업자 일치면 기준을 낮춰줌.
+const isRecItem = (r) => r.score >= (r.wmatch ? REC_THRESHOLD_WORKER : REC_THRESHOLD)
+
+// 현재 패널 대상 SR 기준으로 커밋 정렬 (작업자+내용 종합 점수순)
+const rankedCommits = computed(() => {
+  const h = picker.h
+  if (!h) return []
+  const wc = h.workContent || ''
+  return commitsForRow(h)
+    .map(c => ({ c, score: similarity(wc, c.message), wmatch: workerMatches(h, c) }))
+    .sort((a, b) => {
+      // 추천 항목을 항상 상단에, 그 안에서는 종합 점수순
+      const ra = isRecItem(a), rb = isRecItem(b)
+      if (ra !== rb) return ra ? -1 : 1
+      return finalScore(b) - finalScore(a)
+    })
+})
+const recommendedCount = computed(() => rankedCommits.value.filter(isRecItem).length)
+
+// 추천 커밋(임계치 이상)을 현재 선택에 합쳐서 자동 연동한다.
+const autoMapRecommended = async () => {
+  const h = picker.h
+  if (!h) return
+  const recommended = rankedCommits.value
+    .filter(isRecItem)
+    .map(r => commitToken(r.c))
+  if (!recommended.length) return
+  const merged = [...new Set([...selectedHashes(h), ...recommended])]
+  try {
+    const res = await updateHistoryGitCommit(h.id, {
+      system: serviceToSystem(h) || undefined,
+      commitHashes: merged.join(','),
+    })
+    Object.assign(h, res.data)
+  } catch (e) {
+    error.value = 'git 커밋 자동 추천 실패'
+  }
+}
+
+// 트리거 버튼 기준으로 패널 위치/너비를 (재)계산한다.
+// 너비는 넓게 잡되 화면 밖으로 넘쳐 가로 스크롤이 생기지 않도록 화면폭에 맞춰 조정한다.
+const PANEL_WIDTH = 560
+const repositionPicker = () => {
+  if (!picker.h || !pickerTriggerEl) return
+  const rect = pickerTriggerEl.getBoundingClientRect()
+  const vw = document.documentElement.clientWidth   // 스크롤바 제외 가시 폭
+  const width = Math.min(PANEL_WIDTH, vw - 16)
+  let left = rect.left
+  if (left + width > vw - 8) left = vw - width - 8   // 오른쪽으로 넘치면 왼쪽으로 당김
+  if (left < 8) left = 8
+  picker.top = rect.bottom + 4
+  picker.left = left
+  picker.width = width
+}
+
+// 버튼 위치 아래에 패널을 띄운다. 같은 행을 다시 누르면 닫힘.
+const openPicker = (e, h) => {
+  if (picker.h && picker.h.id === h.id) {
+    picker.h = null
+    pickerTriggerEl = null
+    return
+  }
+  pickerTriggerEl = e.currentTarget
+  picker.h = h
+  loadCommitsForSystem(serviceToSystem(h))   // 서비스에 매핑된 시스템의 커밋 로딩
+  repositionPicker()
+}
 
 // 커밋 체크/해제 후 연동 저장 (선택 토큰 전체를 콤마로 보냄)
 const toggleCommit = async (h, c) => {
@@ -401,7 +641,7 @@ const toggleCommit = async (h, c) => {
     : [...current, token]
   try {
     const res = await updateHistoryGitCommit(h.id, {
-      system: selectedSystem.value || undefined,
+      system: serviceToSystem(h) || undefined,
       commitHashes: next.join(','),
     })
     Object.assign(h, res.data)
@@ -410,14 +650,41 @@ const toggleCommit = async (h, c) => {
   }
 }
 
-// 연동된 커밋 기준 사이드이펙트 검토 → 보고서 다운로드
+// --- 사이드이펙트 검토 결과 모달 ---
+const report = reactive({ open: false, loading: false, data: null, raw: '', error: '' })
+
+// LLM 추론 텍스트를 모달로 보여준다. (혹시 JSON 형식이면 구조화해서 표시)
+const showReport = (content) => {
+  report.error = ''
+  report.raw = content || ''
+  try {
+    const parsed = content ? JSON.parse(content) : null
+    report.data = (parsed && typeof parsed === 'object') ? parsed : null
+  } catch (e) {
+    report.data = null   // 일반 텍스트면 raw 로 표시
+  }
+  report.open = true
+}
+const closeReport = () => { report.open = false }
+
+// 위험 레벨별 배지 색상
+const riskClass = (level) => {
+  const l = (level || '').toUpperCase()
+  if (l === 'HIGH') return 'bg-red-100 text-red-700'
+  if (l === 'MEDIUM') return 'bg-amber-100 text-amber-700'
+  if (l === 'LOW') return 'bg-green-100 text-green-700'
+  return 'bg-gray-100 text-gray-600'
+}
+
+// 연동된 커밋 기준 사이드이펙트 검토 → 결과 모달 표시
 const runRowSideEffect = async (h) => {
   if (!commitCount(h)) return
   sideEffectLoading[h.id] = true
   error.value = ''
   try {
     const res = await analyzeHistorySideEffect(h.id)
-    if (res.data?.docPath) await downloadDoc(res.data.docPath)
+    h.hasSideEffectReport = true   // 검토 결과 생성됨 → 보기 버튼 활성화
+    showReport(res.data?.content)
   } catch (e) {
     error.value = e.response?.data?.message || '사이드이펙트 검토 실패'
   } finally {
@@ -425,8 +692,87 @@ const runRowSideEffect = async (h) => {
   }
 }
 
+// --- 테스트케이스 자동 생성 ---
+const testCaseLoading = reactive({})
+const testCaseModal = reactive({ open: false, content: '', copied: false })
+const genTestCases = async (h) => {
+  testCaseLoading[h.id] = true
+  error.value = ''
+  try {
+    const res = await generateTestCases(h.id)
+    Object.assign(h, res.data)
+    testCaseModal.content = h.testCase || ''
+    testCaseModal.copied = false
+    testCaseModal.open = true
+  } catch (e) {
+    error.value = e.response?.data?.message || '테스트케이스 생성 실패'
+  } finally {
+    testCaseLoading[h.id] = false
+  }
+}
+const openTestCase = (h) => {
+  testCaseModal.content = h.testCase || ''
+  testCaseModal.copied = false
+  testCaseModal.open = true
+}
+const copyTestCase = async () => {
+  try {
+    await navigator.clipboard.writeText(testCaseModal.content)
+    testCaseModal.copied = true
+    setTimeout(() => { testCaseModal.copied = false }, 1500)
+  } catch (e) { /* 무시 */ }
+}
+
+// 저장된 검토 결과 다시 보기
+const openReportForHistory = async (h) => {
+  report.loading = true
+  report.open = true
+  report.data = null
+  report.raw = ''
+  report.error = ''
+  try {
+    const res = await getHistorySideEffect(h.id)
+    if (res.data?.exists) {
+      showReport(res.data.content)
+    } else {
+      report.error = '저장된 검토 결과가 없습니다.'
+    }
+  } catch (e) {
+    report.error = '검토 결과를 불러오지 못했습니다.'
+  } finally {
+    report.loading = false
+  }
+}
+
+// 반영이력 기반 작업내용 텍스트 생성 → 모달 표시(한글파일 붙여넣기용)
+const workPlanLoading = reactive({})
+const workPlanModal = reactive({ open: false, content: '', copied: false })
+const generateWorkPlanDoc = async (p) => {
+  workPlanLoading[p.id] = true
+  error.value = ''
+  try {
+    const res = await generateWorkPlan(p.id)
+    workPlanModal.content = res.data?.content || ''
+    workPlanModal.copied = false
+    workPlanModal.open = true
+  } catch (e) {
+    error.value = e.response?.data?.message || '작업내용 생성 실패'
+  } finally {
+    workPlanLoading[p.id] = false
+  }
+}
+const copyWorkPlan = async () => {
+  try {
+    await navigator.clipboard.writeText(workPlanModal.content)
+    workPlanModal.copied = true
+    setTimeout(() => { workPlanModal.copied = false }, 1500)
+  } catch (e) {
+    error.value = '클립보드 복사 실패 (직접 선택해 복사하세요)'
+  }
+}
+
 const removePlan = async (p) => {
-  if (!confirm(`'${p.title}' 반영 계획서와 하위 반영 이력/장애를 모두 삭제할까요?`)) return
+  if (!confirm(`'${p.title}' 작업 계획서와 하위 반영 이력/장애를 모두 삭제할까요?`)) return
   deletingId.value = p.id
   try {
     await deleteReleasePlan(p.id)
@@ -463,20 +809,22 @@ const goPage = (n) => {
   loadPlans()
 }
 
-// 셀 바깥 클릭 시 열린 커밋 선택창을 모두 닫는다 (셀에는 @click.stop 적용됨)
-const closeAllCommitPickers = () => {
-  Object.keys(commitPickerOpen).forEach(k => { commitPickerOpen[k] = false })
-}
+// 바깥 클릭 시 커밋 선택 패널을 닫는다 (셀/패널에는 @click.stop 적용됨)
+const closeAllCommitPickers = () => { picker.h = null; pickerTriggerEl = null }
 
 onMounted(async () => {
   loadPlans()
   await loadGitSystems()
-  loadGitCommits()
   document.addEventListener('click', closeAllCommitPickers)
+  // teleport 패널은 고정 위치라, 스크롤/리사이즈 시 버튼을 따라 위치를 재계산한다.
+  window.addEventListener('scroll', repositionPicker, true)
+  window.addEventListener('resize', repositionPicker)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', closeAllCommitPickers)
+  window.removeEventListener('scroll', repositionPicker, true)
+  window.removeEventListener('resize', repositionPicker)
 })
 
 const generatePlan = async () => {

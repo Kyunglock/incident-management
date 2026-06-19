@@ -5,10 +5,27 @@ import org.springframework.stereotype.Component;
 @Component
 public class PromptBuilder {
 
+    /** 작업내용 + 코드 변경(git diff)을 바탕으로 검증용 테스트케이스를 한국어로 작성. */
+    public String buildTestCasePrompt(String workContent, String gitDiff) {
+        String diffSection = (gitDiff == null || gitDiff.isBlank()) ? "(연동된 git 커밋 없음)" : gitDiff;
+        return String.format("""
+                아래 작업내용과 코드 변경(git diff)을 함께 보고, 검증용 테스트케이스를 한국어로 간결하게 작성해 주세요.
+                각 케이스는 한 줄로, 번호를 붙여 "확인할 동작 / 기대 결과" 형태로 적어주세요.
+                코드 변경에서 드러나는 구체적 동작(분기, 예외 처리 등)도 케이스로 반영하고,
+                정상 케이스와 함께 주요 예외/경계 케이스도 포함하세요. 서론 없이 목록만 출력하세요.
+
+                [작업내용]
+                %s
+
+                [코드 변경(git diff)]
+                %s
+                """, workContent, diffSection);
+    }
+
     public String buildReleasePlanPrompt(String commitMessages, String excelSummary) {
         return String.format("""
                 당신은 IT 운영 담당자를 돕는 AI 어시스턴트입니다.
-                아래 정보를 바탕으로 반영 계획서 뼈대(초안)를 JSON 형식으로 작성해 주세요.
+                아래 정보를 바탕으로 작업 계획서 뼈대(초안)를 JSON 형식으로 작성해 주세요.
                 정보가 부족한 항목은 빈 문자열이나 빈 배열로 두고, 있는 정보만으로 구조를 채워주세요.
 
                 [Git Commit 메시지]
@@ -19,7 +36,7 @@ public class PromptBuilder {
 
                 반드시 아래 JSON 구조로만 응답하세요:
                 {
-                  "title": "반영 계획서 제목",
+                  "title": "작업 계획서 제목",
                   "purpose": "반영 목적",
                   "scope": "반영 범위",
                   "changes": [{"item": "변경 항목", "description": "설명"}],
@@ -51,17 +68,15 @@ public class PromptBuilder {
 
     public String buildSideEffectPrompt(String gitDiff) {
         return String.format("""
-                아래 git diff를 분석하여 사이드이펙트를 JSON으로 보고해 주세요.
+                아래 git diff(코드 변경분)를 분석해서, 이 변경으로 발생할 수 있는
+                사이드이펙트(부작용/영향)를 한국어로 '간결하게' 요약해 주세요.
+
+                장황한 설명/서론 없이 핵심만 다음 형식으로:
+                - 핵심 영향·위험: 3~5개 불릿 (각 한 줄, 중요도 [높음/보통/낮음] 표시)
+                - 결론: 1~2문장 (배포해도 되는지/주의점)
 
                 [Git Diff]
                 %s
-
-                반드시 아래 JSON 구조로만 응답하세요:
-                {
-                  "affected_modules": ["영향 모듈 목록"],
-                  "risk_items": [{"module": "모듈명", "risk": "위험 내용", "level": "HIGH|MEDIUM|LOW"}],
-                  "recommendation": "권고 사항"
-                }
                 """, gitDiff);
     }
 

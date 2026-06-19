@@ -32,4 +32,10 @@ public class IncidentController {
     public ResponseEntity<IncidentResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(incidentService.getById(id));
     }
+
+    /** 전역 장애 목록 (모든 SR) */
+    @GetMapping("/api/incidents")
+    public ResponseEntity<List<IncidentResponse>> getAll() {
+        return ResponseEntity.ok(incidentService.getAll());
+    }
 }

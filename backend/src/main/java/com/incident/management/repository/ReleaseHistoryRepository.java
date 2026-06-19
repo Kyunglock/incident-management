@@ -8,5 +8,7 @@ import java.util.List;
 public interface ReleaseHistoryRepository extends JpaRepository<ReleaseHistory, Long> {
     List<ReleaseHistory> findByReleasePlanIdOrderByCreatedAtDesc(Long releasePlanId);
 
+    List<ReleaseHistory> findAllByOrderByCreatedAtDesc();
+
     void deleteByReleasePlanId(Long releasePlanId);
 }

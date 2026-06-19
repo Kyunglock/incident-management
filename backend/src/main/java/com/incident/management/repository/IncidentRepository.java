@@ -9,6 +9,8 @@ import java.util.List;
 public interface IncidentRepository extends JpaRepository<Incident, Long> {
     List<Incident> findByReleaseHistoryIdOrderByOccurredAtDesc(Long releaseHistoryId);
 
+    List<Incident> findAllByOrderByOccurredAtDesc();
+
     List<Incident> findByReleaseHistoryIdIn(Collection<Long> releaseHistoryIds);
 
     void deleteByReleaseHistoryIdIn(Collection<Long> releaseHistoryIds);

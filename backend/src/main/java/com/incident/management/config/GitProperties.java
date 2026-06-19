@@ -45,7 +45,10 @@ public class GitProperties {
     @Data
     public static class Gitlab {
         private String baseUrl;
+        /** 공용(폴백) 토큰. 프로젝트별 토큰이 없을 때 사용. */
         private String token;
+        /** 프로젝트 경로 → Access Token (저장소마다 토큰이 다를 때) */
+        private Map<String, String> tokens = new HashMap<>();
         private String branch = "main";
         /** system 키 → 프로젝트 경로 목록 */
         private Map<String, List<String>> systems = new HashMap<>();
@@ -56,6 +59,14 @@ public class GitProperties {
                 return systems.get(system);
             }
             return new ArrayList<>();
+        }
+
+        /** 프로젝트별 토큰을 우선 사용하고, 없으면 공용 토큰으로 폴백. */
+        public String resolveToken(String project) {
+            if (project != null && tokens.containsKey(project)) {
+                return tokens.get(project);
+            }
+            return token;
         }
     }
 }

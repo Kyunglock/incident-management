@@ -22,12 +22,14 @@ public class LlmClient {
     private final String chatUrl;
     private final String model;
     private final String userAgent;
+    private final int numCtx;
 
     public LlmClient(
             WebClient webClient,
             @Value("${ai.llm.url:https://kwaklabs.com/api/v1/kwakai/chat}") String chatUrl,
             @Value("${ai.llm.model:gemma4-31b}") String model,
             @Value("${ai.llm.user-agent:curl/8.4.0}") String userAgent,
+            @Value("${ai.llm.num-ctx:8192}") int numCtx,
             ObjectMapper objectMapper) {
         // 인증서 검증을 완화한 공용 WebClient 빈을 재사용한다.
         this.webClient = webClient;
@@ -35,15 +37,20 @@ public class LlmClient {
         this.chatUrl = chatUrl;
         this.model = model;
         this.userAgent = userAgent;
+        this.numCtx = numCtx;
     }
 
     public String chat(String prompt) {
         try {
-            Map<String, Object> body = Map.of(
-                    "model", model,
-                    "messages", List.of(Map.of("role", "user", "content", prompt)),
-                    "stream", false
-            );
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("model", model);
+            body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+            body.put("stream", false);
+            // Ollama 컨텍스트 크기. 기본 2048 이면 큰 프롬프트가 잘려 응답이 망가지므로 키운다.
+            // (OpenAI 호환 서버는 이 필드를 무시한다.)
+            if (numCtx > 0) {
+                body.put("options", Map.of("num_ctx", numCtx));
+            }
 
             String response = webClient.post()
                     .uri(chatUrl)

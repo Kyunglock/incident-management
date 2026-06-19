@@ -18,7 +18,7 @@ public interface GitProvider {
     /** system 의 최근 커밋 목록. system 이 여러 프로젝트에 매핑되면 병합해 반환. */
     List<GitCommit> listCommits(String system, int count);
 
-    /** 반영계획서 생성용 oneline 커밋 메시지 모음 */
+    /** 작업계획서 생성용 oneline 커밋 메시지 모음 */
     String commitMessages(String system, int count);
 
     /** 단일 커밋의 부모 대비 변경분(diff) */

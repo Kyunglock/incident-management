@@ -52,6 +52,10 @@ public class ReleaseHistory {
     @Column(columnDefinition = "TEXT")
     private String testDetail;
 
+    /** 테스트케이스 (LLM 자동 생성 가능) */
+    @Column(columnDefinition = "TEXT")
+    private String testCase;
+
     /** Frontend 작업 여부 */
     private Boolean frontendChanged;
 

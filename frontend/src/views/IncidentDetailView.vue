@@ -59,7 +59,7 @@ const plan = ref(null)
 const analyses = ref([])
 
 const breadcrumbItems = computed(() => [
-  { label: '반영 계획서 목록', to: '/' },
+  { label: '작업 계획서 목록', to: '/' },
   { label: plan.value ? plan.value.title : '...', to: plan.value ? `/release-plans/${plan.value.id}` : null },
   { label: history.value?.srNumber ? `반영 이력 (${history.value.srNumber})` : `반영 이력 #${history.value ? history.value.id : ''}`, to: history.value ? `/release-histories/${history.value.id}` : null },
   { label: `장애 #${incidentId}`, to: null },

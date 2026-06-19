@@ -38,7 +38,7 @@ public class IncidentAnalysisService {
                     .orElseThrow(() -> new ResourceNotFoundException("장애 이력을 찾을 수 없습니다: " + incidentId));
 
             String releaseSummary = "반영이력 #" + incident.getReleaseHistory().getId()
-                    + " (반영계획서 #" + incident.getReleaseHistory().getReleasePlan().getId() + ")";
+                    + " (작업계획서 #" + incident.getReleaseHistory().getReleasePlan().getId() + ")";
 
             String prompt = promptBuilder.buildIncidentAnalysisPrompt(incident.getSymptom(), errorLogs, releaseSummary);
             String llmOutput = llmClient.chat(prompt);
