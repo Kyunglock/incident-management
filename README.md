@@ -29,7 +29,7 @@ ReleasePlan(반영 계획서)
 
 | 구분 | 기술 |
 |------|------|
-| 프론트엔드 | React, Vite, Vue Router, Axios, Tailwind CSS |
+| 프론트엔드 | vue3, Vite, Vue Router, Axios, Tailwind CSS |
 | 백엔드 | Spring Boot 3.2, JDK 17, Gradle |
 | 데이터베이스 | PostgreSQL |
 | AI | 로컬 LLM API (kwaklabs.com) |
